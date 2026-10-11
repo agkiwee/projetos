@@ -7,7 +7,7 @@ Pasta do sistema: /home/user/projetos/meu-sistema
 
 ## Checkpoints
 - [x] Módulo 0 · Preparo (pasta + gaveta de materiais)
-- [ ] Módulo 1 · Definir o processo (perfil: pilares, tom, formato-âncora)
+- [x] Módulo 1 · Definir o processo (perfil: pilares, tom, formato-âncora)
 - [ ] Módulo 2 · Construir o motor (skill instalada + testada)
 - [ ] Módulo 3 · Edição de vídeo (com a minha assinatura)
 - [ ] Módulo 4 · Expandir formatos e carrossel com arte
@@ -17,4 +17,4 @@ Pasta do sistema: /home/user/projetos/meu-sistema
 - [ ] Módulo 8 · Rotina do radar (agendada)
 
 ## Onde parei
-Módulo 1 em andamento: materiais lidos (matéria-prima V2 na gaveta), diagnóstico do perfil enviado, aguardando confirmação e respostas da Parte B (redes, radar, fontes, meta de 90 dias).
+Módulo 2 em andamento: perfil.md salvo; entrevista funda (Parte A) enviada com respostas pré-preenchidas pelos materiais, aguardando confirmação do Fabiano pra gerar o meu-motor.
