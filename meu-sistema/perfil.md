@@ -80,6 +80,14 @@ sustenta com um caso ou número real da Kiwee, fecha com pergunta pro leitor sem
 - Nunca usar arte, logo ou personagem de terceiro gerado por IA.
 - IA sempre amarrada a marketing ou vendas.
 
+## Entrevista do motor (Módulo 2, confirmada em 2026-10-11)
+- Objeções mais ouvidas (propostas a partir do material, a confirmar pelo Fabiano): "agência é caro, um
+  freela faz"; "já tive agência e não vi retorno"; "quero ver resultado antes de fechar anual"; "agora
+  não, vou esperar passar [Black Friday, eleição, semestre]".
+- Vibe de referência (só clima, nunca cópia): Bruno Cesar, Joel Jota e Flávio Augusto.
+- Cadência confirmada: 3 publicações/semana no Instagram, 2 a 4 vídeos/mês, 1 LinkedIn/semana,
+  newsletter nas edições do Fabiano.
+
 ## Redes do sistema
 Instagram @fabiano.kiwee (foco) · LinkedIn pessoal · newsletter da Kiwee (e-mail marketing).
 O @agkiwee aparece como colaboração quando o conteúdo é da agência.

@@ -17,4 +17,4 @@ Pasta do sistema: /home/user/projetos/meu-sistema
 - [ ] Módulo 8 · Rotina do radar (agendada)
 
 ## Onde parei
-Módulo 2 em andamento: perfil.md salvo; entrevista funda (Parte A) enviada com respostas pré-preenchidas pelos materiais, aguardando confirmação do Fabiano pra gerar o meu-motor.
+Módulo 2: motor gerado (meu-motor/SKILL.md, 335 linhas) e empacotado (meu-motor.skill); rodada de amostra registrada na base. Falta: Fabiano instalar o .skill no computador dele (Cowork) e testar numa conversa nova com 'roda o motor com o tema X'.
