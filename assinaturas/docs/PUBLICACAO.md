@@ -32,7 +32,7 @@ Se a hospedagem não deixar escolher a raiz do documento, use a pasta `assinatur
 
 ### Opção A: publicação automática pelo GitHub (recomendada)
 
-O repositório já traz o fluxo `.github/workflows/assinaturas-publicar.yml`. Ele envia a pasta `assinaturas/` por FTP a cada alteração na branch `main`.
+O repositório já traz o fluxo `.github/workflows/assinaturas-publicar.yml`. Ele envia a pasta `assinaturas/` por FTP a cada alteração que chega à branch principal do repositório no GitHub.
 
 1. No cPanel, em **Contas de FTP**, crie uma conta com o diretório `assinatura.agkiwee.com.br`.
 2. No GitHub, abra o repositório, vá em **Settings**, **Secrets and variables**, **Actions** e crie três segredos:
@@ -45,7 +45,7 @@ FTP_PASSWORD
 
 `FTP_SERVER` é o endereço de FTP (por exemplo `ftp.agkiwee.com.br`). `FTP_USERNAME` é o usuário completo criado no cPanel.
 
-3. Faça o merge na `main` ou rode o fluxo manualmente em **Actions**, **Publicar assinaturas**, **Run workflow**.
+3. Faça o merge do pull request na branch principal ou rode o fluxo manualmente em **Actions**, **Publicar assinaturas**, **Run workflow**.
 
 Dois ajustes opcionais ficam em **Variables**, na mesma tela dos segredos:
 
@@ -105,7 +105,7 @@ Guarde três coisas: o banco de dados, a pasta `public/uploads` e o arquivo `con
 
 ## Atualizações
 
-Com a opção A, cada merge na `main` publica a nova versão. As tabelas do banco são criadas na instalação. Se uma versão futura precisar de tabelas novas, isso virá descrito nas notas da versão.
+Com a opção A, cada merge na branch principal publica a nova versão. As tabelas do banco são criadas na instalação. Se uma versão futura precisar de tabelas novas, isso virá descrito nas notas da versão.
 
 ## Problemas comuns
 
