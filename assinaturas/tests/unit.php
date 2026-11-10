@@ -111,6 +111,12 @@ check('aplicar o padrão mantém nome, telefone próprio e foto', $applied['fiel
 check('aplicar o padrão troca modelo, cores e dados da empresa', $applied['template'] === 'vertical' && $applied['style']['colorTitle'] === '#112233' && $applied['fields']['company']['value'] === 'Empresa');
 $person['fields']['phone']['value'] = '';
 check('sem telefone próprio, entra o telefone da empresa', sig_apply_default($person, $default)['fields']['phone']['value'] === '(11) 3000-0000');
+$person['fields']['mobile'] = ['value' => '(11) 98888-0000', 'show' => false];
+$kept = sig_apply_default($person, $default);
+check('aplicar o padrão mantém oculto o campo que o colaborador ocultou', $kept['fields']['mobile']['show'] === false && $kept['fields']['mobile']['value'] === '(11) 98888-0000');
+$public = sig_public_view(sig_sanitize($kept + ['social' => [['type' => 'linkedin', 'url' => 'https://linkedin.com/x', 'show' => false]]], $key));
+check('página pública não leva valores de campos ocultos', $public['fields']['mobile']['value'] === '' && $public['social'] === [] && $public['fields']['name']['value'] === 'Ana');
+$person['fields']['mobile'] = ['value' => '', 'show' => true];
 $person['fields']['title']['value'] = 'Diretora';
 $person['fields']['email']['value'] = 'ANA@Exemplo.com';
 check('texto de busca fica em minúsculas', sig_search_text($person) === 'ana diretora  ana@exemplo.com');
@@ -140,7 +146,10 @@ $gif = imagecreatetruecolor(20, 20);
 ob_start();
 imagegif($gif);
 $gifBytes = (string) ob_get_clean();
-check('GIF é mantido como GIF', image_prepare($gifBytes, 'banner')['ext'] === 'gif');
+check('GIF é regravado como PNG', image_prepare($gifBytes, 'banner')['ext'] === 'png');
+$fakeGif = "GIF89a\x10\x00\x10\x00\x00\x00\x00" . '<html><script>alert(1)</script><?php system($_GET[1]); ?>';
+check('arquivo com cabeçalho de GIF e conteúdo estranho é recusado', problem(fn () => image_prepare($fakeGif, 'logo')) !== '');
+check('GIF válido com código anexado perde o anexo', strpos(image_prepare($gifBytes . '<?php evil(); ?>', 'logo')['bytes'], '<?php') === false);
 check('PHP disfarçado dentro de um PNG válido some ao regravar',
     strpos(image_prepare(file_get_contents($fixtures . '/logo.png') . '<?php system($_GET[1]); ?>', 'logo')['bytes'], '<?php') === false);
 
@@ -161,6 +170,13 @@ check('porta diferente é recusada', strpos(problem(fn () => image_url_guard('ht
 foreach (['https://127.0.0.1/a.png', 'https://10.0.0.5/a.png', 'https://192.168.1.10/a.png', 'https://169.254.169.254/latest/meta-data', 'https://localhost/a.png'] as $internal) {
     check("rede interna é recusada: $internal", strpos(problem(fn () => image_url_guard($internal)), 'rede interna') !== false, problem(fn () => image_url_guard($internal)));
 }
+foreach (['https://100.64.0.1/a.png', 'https://198.18.0.1/a.png', 'https://224.0.0.1/a.png', 'https://192.0.0.8/a.png'] as $reserved) {
+    check("faixa reservada é recusada: $reserved", strpos(problem(fn () => image_url_guard($reserved)), 'rede interna') !== false);
+}
+check('endereço público comum não cai nas faixas extras', !ip_in_extra_blocked_range('8.8.8.8') && !ip_in_extra_blocked_range('200.160.2.3'));
+check('host com caracteres fora do padrão é recusado', problem(fn () => image_url_guard('https://exa%6dple.com/a.png')) !== '' && problem(fn () => image_url_guard('https://①②⑦.0.0.1/a.png')) !== '');
+check('cabeçalho de imagem com corpo inválido é recusado ao verificar um link',
+    problem(fn () => image_url_evaluate(['status' => 200, 'type' => 'image/gif', 'body' => "GIF89a\x10\x00\x10\x00\x00\x00\x00<html>", 'url' => 'x'], 'direct')) !== '');
 check('endereço com espaço ou aspas é recusado', problem(fn () => image_url_inspect('https://site.com.br/a b.png')) !== '' && problem(fn () => image_url_inspect('https://site.com.br/a".png')) !== '');
 $private = problem(fn () => image_url_evaluate(['status' => 200, 'type' => 'text/html; charset=utf-8', 'body' => '<!DOCTYPE html><html>Sign in</html>', 'url' => 'x'], 'drive'));
 check('Drive privado recebe orientação de compartilhamento', strpos($private, 'Qualquer pessoa com o link') !== false, $private);
@@ -175,6 +191,22 @@ check('ícone é pintado na cor pedida', (($center >> 16) & 0xFF) === 0x2a && ((
 check('canto do ícone redondo é transparente', ((imagecolorat($image, 0, 0) >> 24) & 0x7F) === 127);
 check('forma ou nome fora da biblioteca não gera ícone', icon_mask_path('circle', '../../config') === null && icon_mask_path('hexagon', 'linkedin') === null);
 check('biblioteca tem os ícones de contato e de redes', count(sig_icon_names()) >= 30 && in_array('whatsapp', sig_icon_names(), true));
+
+echo "\nLimite de tentativas\n";
+$_SERVER['REMOTE_ADDR'] = '203.0.113.10';
+$long = str_repeat('a', 178) . '@exemplo.com';
+for ($i = 0; $i < KW_LOGIN_MAX_ATTEMPTS; $i++) {
+    login_record_failure($long);
+}
+check('e-mail muito longo não quebra o registro de tentativas', login_throttled($long));
+$_SERVER['REMOTE_ADDR'] = '203.0.113.99';
+check('erros vindos de outro endereço não trancam a conta de quem está em outro lugar', !login_throttled($long));
+$_SERVER['REMOTE_ADDR'] = '203.0.113.10';
+login_clear_failures($long);
+check('redefinir a senha libera o login', throttle_count('login:' . $long . '|203.0.113.10') === 0);
+check('pedir link de senha usa contador separado do login', throttle_count('forgot:' . $long) === 0);
+check('marca da senha muda quando a senha muda', password_fingerprint(password_hash('a', PASSWORD_DEFAULT)) !== password_fingerprint(password_hash('b', PASSWORD_DEFAULT)));
+check('limites do php.ini são lidos em bytes', ini_bytes('8M') === 8388608 && ini_bytes('2G') === 2147483648 && ini_bytes('512K') === 524288 && format_megabytes(2097152) === '2 MB');
 
 echo "\nAcesso\n";
 check('usuário suspenso é bloqueado', access_block_reason(['status' => 'suspended', 'role' => 'client', 'company_id' => 1, 'company_status' => 'active']) !== null);

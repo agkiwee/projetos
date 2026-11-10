@@ -140,15 +140,13 @@
     holder.style.height = Math.ceil(height * scale + 16) + 'px';
   };
 
-  /** Chamada JSON para a API com o token de segurança da sessão. */
-  KW.api = function (path, options) {
-    options = options || {};
+  function apiRequest(path, options) {
     var boot = KW.bootData || (KW.bootData = KW.boot());
-    var headers = { 'X-CSRF-Token': boot.csrf || '', 'Accept': 'application/json' };
+    var headers = { 'X-CSRF-Token': boot.csrf || '', 'X-KW-Company': boot.companyKey || '', 'Accept': 'application/json' };
     var body = options.body;
     if (body && !(body instanceof FormData)) {
-      headers['Content-Type'] = 'application/json';
-      body = JSON.stringify(body);
+        headers['Content-Type'] = 'application/json';
+        body = JSON.stringify(body);
     }
     return fetch((boot.base || '') + path, {
       method: options.method || (body ? 'POST' : 'GET'),
@@ -157,7 +155,8 @@
       credentials: 'same-origin'
     }).then(function (response) {
       return response.json().catch(function () { return {}; }).then(function (data) {
-        if (!response.ok || data.ok === false) {
+        // Só vale como sucesso a resposta que o servidor marcou como tal.
+        if (!response.ok || data.ok !== true) {
           var error = new Error(data.error || 'Não foi possível concluir. Tente de novo.');
           error.status = response.status;
           error.data = data;
@@ -167,6 +166,35 @@
       });
     }, function () {
       throw new Error('Sem conexão com o servidor. Verifique sua internet e tente de novo.');
+    });
+  }
+
+  /** Busca o token de segurança atual. Mantém a sessão viva enquanto o editor está aberto. */
+  KW.refreshSession = function () {
+    return apiRequest('/api/sessao', {}).then(function (data) {
+      var boot = KW.bootData || (KW.bootData = KW.boot());
+      boot.csrf = data.csrf;
+      return data;
+    });
+  };
+
+  /**
+   * Chamada JSON para a API com o token de segurança da sessão.
+   * Se o token venceu (por exemplo, depois de entrar de novo em outra aba), busca um novo e repete uma vez,
+   * para o trabalho aberto no editor não se perder.
+   */
+  KW.api = function (path, options) {
+    options = options || {};
+    return apiRequest(path, options).catch(function (error) {
+      if (error.status !== 419 && error.status !== 401) { throw error; }
+      return KW.refreshSession().then(function () {
+        return apiRequest(path, options);
+      }, function (sessionError) {
+        if (sessionError.status === 401) {
+          throw new Error('Sua sessão terminou. Entre de novo em outra aba do navegador e depois salve aqui. Seu trabalho continua nesta tela.');
+        }
+        throw error;
+      });
     });
   };
 

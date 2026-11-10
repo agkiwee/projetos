@@ -233,3 +233,33 @@ function asset(string $path): string
     $version = is_file($file) ? (string) filemtime($file) : '0';
     return url('/assets/' . ltrim($path, '/')) . '?v=' . $version;
 }
+
+/** Converte valores do php.ini como "8M" em bytes. */
+function ini_bytes(string $value): int
+{
+    $value = trim($value);
+    $number = (float) $value;
+    switch (strtolower(substr($value, -1))) {
+        case 'g':
+            $number *= 1024;
+            // sem break: continua multiplicando
+        case 'm':
+            $number *= 1024;
+            // sem break
+        case 'k':
+            $number *= 1024;
+    }
+    return (int) $number;
+}
+
+/** Maior arquivo que este servidor aceita receber, segundo o php.ini. */
+function upload_limit_bytes(): int
+{
+    $limits = array_filter([ini_bytes((string) ini_get('upload_max_filesize')), ini_bytes((string) ini_get('post_max_size'))]);
+    return $limits ? (int) min($limits) : PHP_INT_MAX;
+}
+
+function format_megabytes(int $bytes): string
+{
+    return rtrim(rtrim(number_format($bytes / 1048576, 1, ',', '.'), '0'), ',') . ' MB';
+}

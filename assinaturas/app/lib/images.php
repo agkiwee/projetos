@@ -4,7 +4,7 @@ declare(strict_types=1);
 const IMG_KINDS = ['logo', 'photo', 'icon', 'banner'];
 const IMG_MAX_UPLOAD_BYTES = 4194304;   // 4 MB por arquivo enviado
 const IMG_MAX_REMOTE_BYTES = 5242880;   // 5 MB ao importar por URL
-const IMG_MAX_PIXELS = 24000000;        // protege a memória do servidor
+const IMG_MAX_PIXELS = 16000000;        // protege a memória do servidor (fotos de celular têm cerca de 12 milhões)
 const IMG_PHOTO_SIZE = 264;             // foto quadrada, 3x o tamanho padrão de exibição
 
 /** Erro com mensagem pronta para ser mostrada ao usuário. */
@@ -14,7 +14,8 @@ class ImageProblem extends RuntimeException
 
 /**
  * Valida os bytes de uma imagem e prepara os arquivos que serão hospedados.
- * Tudo é regravado pelo GD (exceto GIF), o que remove metadados e conteúdo estranho.
+ * Toda imagem é regravada pelo GD como PNG, o que remove metadados e qualquer conteúdo estranho
+ * escondido no arquivo. Por isso um GIF animado vira uma imagem parada (o primeiro quadro).
  *
  * @return array{ext:string,mime:string,width:int,height:int,bytes:string,circle:?string}
  */
@@ -36,17 +37,11 @@ function image_prepare(string $bytes, string $kind): array
         throw new ImageProblem('Formato de imagem não aceito. Use PNG, JPG ou GIF.');
     }
     if ($width < 1 || $height < 1 || $width * $height > IMG_MAX_PIXELS) {
-        throw new ImageProblem('A imagem é grande demais. Reduza para no máximo 4000 pixels de largura.');
+        throw new ImageProblem('A imagem é grande demais. Reduza para no máximo 4000 pixels no lado maior.');
     }
 
-    // GIF é mantido como veio para preservar animação, desde que tenha tamanho razoável.
-    if ($type === IMAGETYPE_GIF && $kind !== 'photo') {
-        if ($width > 1200 || $height > 1200) {
-            throw new ImageProblem('O GIF é grande demais. Use no máximo 1200 pixels de largura.');
-        }
-        return ['ext' => 'gif', 'mime' => 'image/gif', 'width' => $width, 'height' => $height, 'bytes' => $bytes, 'circle' => null];
-    }
-
+    // Imagens grandes precisam de mais memória só durante o tratamento.
+    @ini_set('memory_limit', '256M');
     $source = @imagecreatefromstring($bytes);
     if (!$source) {
         throw new ImageProblem('Não foi possível ler a imagem. Tente salvar o arquivo de novo como PNG ou JPG.');
@@ -282,7 +277,8 @@ function image_url_guard(string $url): array
     $parts = parse_url($url);
     $scheme = strtolower((string) ($parts['scheme'] ?? ''));
     $host = strtolower((string) ($parts['host'] ?? ''));
-    if ($parts === false || $host === '') {
+    // Só nomes simples: evita que o PHP e o cURL entendam o mesmo endereço de formas diferentes.
+    if ($parts === false || $host === '' || !preg_match('/^[a-z0-9.\-]+$/', $host)) {
         throw new ImageProblem('O endereço não é válido. Cole o link completo, começando com https://');
     }
     if ($scheme !== 'https' && !($insecure && $scheme === 'http')) {
@@ -301,12 +297,33 @@ function image_url_guard(string $url): array
         throw new ImageProblem('Não foi possível encontrar o servidor "' . $host . '". Confira se o endereço está correto.');
     }
     foreach ($ips as $ip) {
-        $public = filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) !== false;
+        $public = filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) !== false
+            && !ip_in_extra_blocked_range($ip);
         if (!$public && !$insecure) {
             throw new ImageProblem('Este endereço aponta para uma rede interna e não pode ser aberto por quem recebe o e-mail.');
         }
     }
     return [$host, $port, $ips[0]];
+}
+
+/**
+ * Faixas que o filtro do PHP considera públicas mas que não são da internet aberta:
+ * redes de operadora e de nuvem (100.64/10), testes (198.18/15), protocolos (192.0.0/24, 192.88.99/24) e multicast.
+ */
+function ip_in_extra_blocked_range(string $ip): bool
+{
+    $long = ip2long($ip);
+    if ($long === false) {
+        return true; // só IPv4 chega até aqui; qualquer outra coisa é recusada
+    }
+    $ranges = [['100.64.0.0', 10], ['192.0.0.0', 24], ['192.88.99.0', 24], ['198.18.0.0', 15], ['224.0.0.0', 4], ['240.0.0.0', 4], ['0.0.0.0', 8]];
+    foreach ($ranges as [$base, $bits]) {
+        $mask = -1 << (32 - $bits);
+        if (($long & $mask) === (ip2long($base) & $mask)) {
+            return true;
+        }
+    }
+    return false;
 }
 
 /**
@@ -324,7 +341,7 @@ function image_url_fetch(string $url): array
         $body = '';
         $tooBig = false;
         $handle = curl_init($url);
-        $usingProxy = getenv('HTTPS_PROXY') || getenv('https_proxy');
+        $usingProxy = getenv('HTTPS_PROXY') || getenv('https_proxy') || getenv('ALL_PROXY') || getenv('all_proxy');
         $options = [
             CURLOPT_FOLLOWLOCATION => false,
             CURLOPT_HEADER => false,
@@ -431,7 +448,8 @@ function image_url_evaluate(array $response, string $source): array
 
     [$width, $height, $type] = $info;
     $mimes = [IMAGETYPE_PNG => 'image/png', IMAGETYPE_JPEG => 'image/jpeg', IMAGETYPE_GIF => 'image/gif'];
-    if (!isset($mimes[$type])) {
+    // Confere o arquivo inteiro, não só o cabeçalho.
+    if (!isset($mimes[$type]) || !function_exists('imagecreatefromstring') || @imagecreatefromstring($body) === false) {
         throw new ImageProblem('O formato desta imagem não é aceito por todos os clientes de e-mail. Use PNG, JPG ou GIF.');
     }
     $warning = null;

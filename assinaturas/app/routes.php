@@ -47,6 +47,7 @@ function kw_routes(): array
         ['GET', '#^/padrao$#', 'client_default'],
         ['GET', '#^/como-instalar$#', 'client_install_help'],
 
+        ['GET', '#^/api/sessao$#', 'api_session'],
         ['POST', '#^/api/assinaturas$#', 'api_signature_create'],
         ['GET', '#^/api/assinaturas/(\d+)$#', 'api_signature_get'],
         ['POST', '#^/api/assinaturas/(\d+)$#', 'api_signature_update'],

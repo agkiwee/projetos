@@ -51,7 +51,8 @@ function action_login(): void
     }
     login_clear_failures($email);
     if (password_needs_rehash($user['password_hash'], PASSWORD_DEFAULT)) {
-        db_update('users', ['password_hash' => password_hash($password, PASSWORD_DEFAULT)], 'id = ?', [(int) $user['id']]);
+        $user['password_hash'] = password_hash($password, PASSWORD_DEFAULT);
+        db_update('users', ['password_hash' => $user['password_hash']], 'id = ?', [(int) $user['id']]);
     }
     login_user($user);
     redirect('/');
@@ -122,10 +123,14 @@ function page_forgot(): void
 function action_forgot(): void
 {
     $email = mb_strtolower(input('email', 190));
-    if (valid_email($email) && !login_throttled($email)) {
+    // Limite próprio do envio de links, separado do limite de login: pedir links não tranca a conta de ninguém.
+    $allowed = valid_email($email)
+        && throttle_count('forgot:' . $email) < 3
+        && throttle_count('forgot-ip:' . client_ip()) < 12;
+    if ($allowed) {
+        throttle_hit('forgot:' . $email);
+        throttle_hit('forgot-ip:' . client_ip());
         $user = db_one('SELECT * FROM users WHERE email = ? AND status = ?', [$email, 'active']);
-        // Conta como tentativa para limitar o envio repetido de e-mails.
-        login_record_failure($email);
         if ($user) {
             $token = random_token(32);
             db_insert('password_resets', [
@@ -192,6 +197,9 @@ function action_reset(string $token): void
     }
     db_update('users', ['password_hash' => password_hash($password, PASSWORD_DEFAULT)], 'id = ?', [(int) $reset['user_id']]);
     db_run('UPDATE password_resets SET used_at = ? WHERE user_id = ? AND used_at IS NULL', [now_utc(), (int) $reset['user_id']]);
+    // Quem acabou de provar que é dono do e-mail não fica preso por tentativas anteriores.
+    $email = (string) db_value('SELECT email FROM users WHERE id = ?', [(int) $reset['user_id']]);
+    login_clear_failures($email);
     flash('success', 'Senha alterada. Entre com a nova senha.');
     redirect('/entrar');
 }
@@ -220,6 +228,8 @@ function setup_checks(): array
         ['Pasta public/uploads gravável', is_writable(KW_ROOT . '/public/uploads'), 'Dê permissão de escrita (755) para public/uploads.'],
         ['Pasta public/icones gravável', is_writable(KW_ROOT . '/public/icones'), 'Dê permissão de escrita (755) para public/icones.'],
         ['Endereço do site configurado', trim((string) config('app_url', '')) !== '', 'Preencha app_url no config.php.'],
+        ['Envio de arquivos de até 4 MB', upload_limit_bytes() >= IMG_MAX_UPLOAD_BYTES,
+            'O PHP aceita arquivos de até ' . format_megabytes(upload_limit_bytes()) . '. Aumente upload_max_filesize e post_max_size para 8M no cPanel.'],
     ];
 }
 
@@ -252,7 +262,10 @@ function action_setup(): void
     $expected = (string) config('setup_key', '');
 
     $error = null;
-    if ($expected === '' || $expected === 'troque-esta-chave') {
+    if (trim((string) config('app_url', '')) === '') {
+        // Sem endereço fixo, os links dos e-mails seriam montados a partir do que o navegador informa.
+        $error = 'Preencha app_url no config.php com o endereço do site antes de instalar.';
+    } elseif ($expected === '' || $expected === 'troque-esta-chave') {
         $error = 'Defina uma chave própria em setup_key no config.php antes de continuar.';
     } elseif (!hash_equals($expected, $key)) {
         $error = 'A chave de instalação não confere com a do config.php.';
@@ -314,7 +327,11 @@ function action_account(): void
         $changes['password_hash'] = password_hash($password, PASSWORD_DEFAULT);
     }
     db_update('users', $changes, 'id = ?', [(int) $user['id']]);
-    flash('success', 'Dados da conta atualizados.');
+    if (isset($changes['password_hash'])) {
+        // Esta sessão continua valendo; as abertas em outros aparelhos são encerradas.
+        $_SESSION['pw'] = password_fingerprint($changes['password_hash']);
+    }
+    flash('success', isset($changes['password_hash']) ? 'Senha alterada. Outros aparelhos conectados foram desconectados.' : 'Dados da conta atualizados.');
     redirect('/conta');
 }
 
@@ -343,7 +360,7 @@ function page_share(string $token): void
         'companyName' => $row['company_name'],
         'boot' => [
             'baseUrl' => app_url(),
-            'data' => sig_sanitize(json_decode((string) $row['data'], true), (string) $row['public_key']),
+            'data' => sig_public_view(sig_sanitize(json_decode((string) $row['data'], true), (string) $row['public_key'])),
             'name' => $row['name'],
         ],
     ]);

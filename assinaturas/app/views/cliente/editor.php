@@ -284,7 +284,7 @@ $colors = [
             <button type="button" role="tab" aria-selected="false" data-tab="library">Arquivos da empresa</button>
         </div>
         <div role="tabpanel" data-tab-panel="upload">
-            <p class="muted">PNG, JPG ou GIF com até 4 MB. O arquivo fica hospedado na plataforma em um endereço fixo.</p>
+            <p class="muted">PNG, JPG ou GIF com até 4 MB. O arquivo fica hospedado na plataforma em um endereço fixo. GIF animado vira imagem parada.</p>
             <label class="dropzone" for="upload-input">
                 <input id="upload-input" type="file" accept="image/png,image/jpeg,image/gif,image/webp" data-upload-input>
                 <span><strong>Clique para escolher</strong> ou arraste a imagem até aqui</span>

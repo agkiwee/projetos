@@ -12,6 +12,7 @@
   var signature = boot.signature || null;     // { id, name, shareUrl } depois de salva
   var dirty = false;
   var saving = false;
+  var revision = 0;                           // cresce a cada alteração, para saber o que já foi gravado
   var frame = root.querySelector('[data-preview-frame]');
   var meta = root.querySelector('[data-preview-meta]');
   var saveState = root.querySelector('[data-save-state]');
@@ -36,6 +37,7 @@
 
   function changed() {
     dirty = true;
+    revision++;
     saveState.textContent = 'Alterações não salvas';
     saveState.className = 'save-state save-state-dirty';
     renderPreview();
@@ -626,10 +628,12 @@
     saving = true;
     saveState.textContent = 'Salvando...';
     saveState.className = 'save-state';
+    var sentRevision = revision;
     var path = mode === 'default' ? '/api/padrao' : (signature ? '/api/assinaturas/' + signature.id : '/api/assinaturas');
     return KW.api(path, { body: { data: state } }).then(function (result) {
       saving = false;
-      state = R.normalize(result.data);
+      // Os dados em edição não são trocados pela resposta: os campos da tela continuam ligados a eles,
+      // e o que foi digitado enquanto o servidor respondia não se perde.
       if (mode === 'signature') {
         if (!signature) {
           signature = { id: result.id, name: result.name, shareUrl: result.shareUrl };
@@ -639,7 +643,12 @@
         root.querySelector('[data-editor-title]').textContent = result.name;
         document.title = result.name + ' · KIWEE Assinaturas';
       }
-      markSaved();
+      if (revision === sentRevision) {
+        markSaved();
+      } else {
+        saveState.textContent = 'Alterações não salvas';
+        saveState.className = 'save-state save-state-dirty';
+      }
       KW.toast(mode === 'default' ? 'Modelo padrão salvo.' : 'Assinatura salva.');
       return true;
     }, function (error) {
@@ -798,6 +807,11 @@
   window.addEventListener('resize', function () { clearTimeout(miniTimer); miniTimer = setTimeout(renderMinis, 200); });
 
   /* ------------------------------- Início ------------------------------- */
+
+  // Mantém a sessão viva durante edições longas.
+  setInterval(function () { KW.refreshSession().catch(function () {}); }, 5 * 60 * 1000);
+
+  (boot.flashes || []).forEach(function (flash) { KW.toast(flash.message, flash.type === 'success' ? 'success' : flash.type); });
 
   buildTemplates();
   fillInputs();

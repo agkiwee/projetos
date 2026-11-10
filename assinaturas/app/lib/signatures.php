@@ -111,7 +111,7 @@ function sig_image_url($value, string $companyKey): string
         return '';
     }
     if ($value[0] === '/') {
-        $pattern = '#^/uploads/' . preg_quote($companyKey, '#') . '/[a-f0-9]{24}(-c)?\.(png|gif)$#';
+        $pattern = '#^/uploads/' . preg_quote($companyKey, '#') . '/[a-f0-9]{24}(-c)?\.png$#';
         return preg_match($pattern, $value) ? $value : '';
     }
     if (!preg_match('#^https?://#i', $value) || preg_match('/[\s<>"\'`\\\\]/', $value)) {
@@ -295,10 +295,44 @@ function sig_apply_default(array $signature, array $default): array
         if ($own !== '') {
             $merged['fields'][$key]['value'] = $own;
         }
+        // Um campo que o colaborador escolheu ocultar continua oculto.
+        if (($signature['fields'][$key]['show'] ?? true) === false) {
+            $merged['fields'][$key]['show'] = false;
+        }
     }
     $merged['photo']['url'] = $signature['photo']['url'] ?? '';
     $merged['photo']['urlCircle'] = $signature['photo']['urlCircle'] ?? '';
     return $merged;
+}
+
+/**
+ * Versão dos dados para a página pública do colaborador.
+ * Tudo o que está oculto na assinatura é removido, para não aparecer nem no código da página.
+ */
+function sig_public_view(array $data): array
+{
+    foreach ($data['fields'] as $key => $field) {
+        if (!$field['show']) {
+            $data['fields'][$key]['value'] = '';
+        }
+    }
+    foreach (['logo', 'banner'] as $slot) {
+        if (!$data[$slot]['show']) {
+            $data[$slot]['url'] = '';
+            $data[$slot]['link'] = '';
+        }
+    }
+    if (!$data['photo']['show']) {
+        $data['photo']['url'] = '';
+        $data['photo']['urlCircle'] = '';
+    }
+    if (!$data['disclaimer']['show']) {
+        $data['disclaimer']['text'] = '';
+    }
+    $data['social'] = array_values(array_filter($data['social'], static function (array $item): bool {
+        return $item['show'] && $item['url'] !== '';
+    }));
+    return $data;
 }
 
 function sig_search_text(array $data): string

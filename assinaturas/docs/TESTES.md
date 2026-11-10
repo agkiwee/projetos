@@ -24,10 +24,10 @@ Data: 10/11/2026.
 
 | Conjunto | Comando | Resultado |
 |---|---|---|
-| Fluxo completo no navegador, com SQLite | `node tests/e2e.mjs` | 129 verificações, todas passaram |
-| Fluxo completo no navegador, com MariaDB | `KW_TEST_DB=mysql node tests/e2e.mjs` | 129 verificações, todas passaram |
+| Fluxo completo no navegador, com SQLite | `node tests/e2e.mjs` | 138 verificações, todas passaram |
+| Fluxo completo no navegador, com MariaDB | `KW_TEST_DB=mysql node tests/e2e.mjs` | 138 verificações, todas passaram |
 | Gerador do HTML da assinatura | `node --test tests/renderer.test.mjs` | 22 testes, todos passaram |
-| Regras do servidor | `php tests/unit.php` | 74 verificações, todas passaram |
+| Regras do servidor | `php tests/unit.php` | 91 verificações, todas passaram |
 | Envio de e-mail por SMTP (servidor falso, sem criptografia) | `node tests/smtp.test.mjs` | 7 verificações, todas passaram |
 
 ### O que o fluxo completo cobre
@@ -48,12 +48,35 @@ Também cobre: reenvio e cancelamento de convites, convite de administrador, rec
 
 A plataforma foi executada em Apache 2.4.58 nas duas formas de apontar o subdomínio (raiz em `public` e raiz na pasta do projeto). Nas duas: as telas abrem, os ícones são gerados, as imagens enviadas abrem sem login, arquivos PHP dentro de `uploads` são bloqueados e as pastas `app`, `storage`, `bin`, `docs` e o arquivo de configuração não ficam acessíveis.
 
+## Revisão de segurança independente
+
+Depois dos testes, o código passou por uma revisão separada, feita sem conhecer as conclusões de quem escreveu. Ela não encontrou forma de um usuário de cliente alcançar dados de outra empresa nem funções do painel da KIWEE. Apontou os problemas abaixo, todos corrigidos e cobertos por teste:
+
+| Problema encontrado | Correção |
+|---|---|
+| Administrador com duas abas em empresas diferentes podia gravar o padrão na empresa errada | A tela informa a empresa em cada gravação e o servidor recusa quando ela não confere |
+| Depois de salvar, novas edições nas redes eram descartadas sem aviso | O editor não troca mais os dados em edição pela resposta do servidor |
+| Texto digitado durante o salvamento era perdido e aparecia como salvo | O editor só marca como salvo se nada mudou desde o envio |
+| Qualquer pessoa podia trancar o login de outra pedindo links de senha ou errando a senha | Contador próprio para links de senha, bloqueio por par e-mail e endereço IP, e liberação ao redefinir a senha |
+| Arquivo com cabeçalho de GIF e conteúdo estranho era guardado como veio | Toda imagem, inclusive GIF, é regravada como PNG |
+| Sessão do servidor podia vencer em 24 minutos durante uma edição longa | Sessão de 12 horas em pasta própria, renovação automática no editor e recuperação depois de novo login |
+| Aplicar o padrão voltava a mostrar campos que o colaborador tinha ocultado | A escolha de ocultar é mantida |
+| A página do colaborador levava no código os valores de campos ocultos | Campos ocultos são removidos antes de montar a página |
+| A proteção da importação por URL deixava passar algumas faixas reservadas de rede | Faixas acrescentadas e nomes de servidor fora do padrão recusados |
+| Trocar a senha não encerrava sessões abertas em outros aparelhos | A sessão guarda uma marca da senha e cai quando ela muda |
+| Instalação sem endereço configurado montaria links de e-mail a partir do navegador | A instalação exige `app_url` preenchido |
+| Busca de empresas com acento falhava no SQLite | O filtro passou a ser feito no PHP |
+| Mensagem errada quando o servidor limita envios a menos de 4 MB | A mensagem mostra o limite real e a instalação confere esse limite |
+
+Pontos apontados e mantidos como estão, por baixo impacto: o tempo de resposta do pedido de link de senha pode indicar se um e-mail tem acesso, e a pasta de ícones cresce com cada cor salva.
+
 ## Limites conhecidos
 
 * **Google Drive.** A conversão do link de compartilhamento e as mensagens de erro foram testadas com respostas simuladas. Não foi possível buscar um arquivo real do Drive, porque o ambiente não alcança os servidores do Google. Por isso a tela recomenda guardar uma cópia na plataforma.
 * **SMTP com SSL ou TLS.** O envio foi testado sem criptografia contra um servidor falso. Os modos `ssl` e `tls` usam o mesmo código depois da conexão, mas não foram exercitados. Teste enviando um convite real depois de publicar.
 * **Função mail() do servidor.** Só pode ser testada no servidor de hospedagem.
 * **LiteSpeed.** Muitos cPanel usam LiteSpeed no lugar do Apache. As regras usadas são as comuns aos dois, mas o teste foi feito em Apache.
+* **GIF animado.** Por segurança, toda imagem enviada é regravada como PNG. Um GIF animado enviado para a plataforma vira imagem parada. Um GIF animado hospedado no site do cliente e usado por link direto, sem cópia, continua animado.
 * **Modo escuro dos programas de e-mail.** Alguns invertem cores por conta própria. O editor tem a prévia em fundo escuro para conferir o logotipo.
 
 ## Teste nos programas de e-mail (a fazer pela KIWEE)

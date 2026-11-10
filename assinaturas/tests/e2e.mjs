@@ -157,8 +157,9 @@ try {
   const consoleErrors = [];
   const watch = (page, label) => {
     page.on('console', (message) => {
-      // Respostas 422 são as recusas esperadas (senha curta, imagem inválida) e o navegador as registra como erro de rede.
-      if (message.type() === 'error' && !/status of 422/.test(message.text())) { consoleErrors.push(`${label}: ${message.text()}`); }
+      // Respostas 422 e 409 são as recusas esperadas (senha curta, imagem inválida, empresa trocada em outra aba)
+      // e o navegador as registra como erro de rede.
+      if (message.type() === 'error' && !/status of (422|409)/.test(message.text())) { consoleErrors.push(`${label}: ${message.text()}`); }
     });
     page.on('pageerror', (error) => consoleErrors.push(`${label}: ${error.message}`));
   };
@@ -373,6 +374,32 @@ try {
   await a.click('[data-panel-tab="dados"]');
   check('editar assinaturas não altera o modelo padrão', (await a.inputValue('#f-address')).includes('Campo Verde') && await a.isChecked('[data-bind="fields.address.show"]'));
 
+  section('6b. Editar de novo depois de salvar');
+  await a.goto(sig1Url);
+  await a.click('[data-panel-tab="redes"]');
+  const firstSocial = '[data-social-list] .social-row:nth-child(1) input[type="text"]';
+  await a.fill(firstSocial, 'https://www.linkedin.com/company/primeiro');
+  await saveEditor(a);
+  await a.fill(firstSocial, 'https://www.linkedin.com/company/corrigido');
+  check('editar uma rede depois de salvar atualiza a prévia', (await previewHtml(a)).includes('company/corrigido'));
+  await saveEditor(a);
+  await a.reload();
+  check('a rede corrigida depois de um salvamento fica gravada', (await previewHtml(a)).includes('company/corrigido'));
+  // Digitar enquanto o servidor ainda responde não pode ser perdido nem marcado como salvo.
+  await a.route('**/api/assinaturas/*', async (route) => { await new Promise((r) => setTimeout(r, 700)); await route.continue(); });
+  await a.fill('#f-title', 'Diretor de Marketing');
+  await a.click('.editor-actions [data-action="save"]');
+  await a.press('#f-title', 'End');
+  await a.type('#f-title', ' Sênior');
+  await a.waitForSelector('.toast:has-text("Assinatura salva")');
+  check('texto digitado durante o salvamento continua pendente', (await a.textContent('[data-save-state]')).includes('não salvas'));
+  await a.unroute('**/api/assinaturas/*');
+  await saveEditor(a);
+  await a.reload();
+  check('e é gravado no salvamento seguinte', (await a.inputValue('#f-title')) === 'Diretor de Marketing Sênior');
+  await a.fill('#f-title', 'Diretor de Marketing');
+  await saveEditor(a);
+
   section('7. Campos vazios não deixam espaços nem divisórias');
   await a.goto(`${BASE}/assinaturas/nova?modelo=horizontal`);
   await a.fill('#f-name', 'Só Nome');
@@ -457,11 +484,13 @@ try {
   check('página do colaborador traz instruções de Gmail, Outlook e Apple Mail', (await guest.locator('[data-tab]').allTextContents()).join('|') === 'Gmail|Outlook|Apple Mail');
   await shot(guest, '14-link-colaborador');
   check('link inválido não revela nada', (await anonymous.request.get(`${BASE}/i/${'0'.repeat(40)}`)).status() === 404);
+  const sharedSource = await (await anonymous.request.get(shareUrl)).text();
+  check('campo oculto não aparece nem no código da página do colaborador', !sharedSource.includes('Campo Verde') && sharedSource.includes('Bruno Mamede'));
 
   section('10. Importação de imagem por URL');
   const api = async (page, path, body) => {
-    const csrf = await page.evaluate(() => JSON.parse(document.getElementById('kw-boot').textContent).csrf);
-    const response = await page.request.post(`${BASE}${path}`, { data: body, headers: { 'X-CSRF-Token': csrf } });
+    const boot = await page.evaluate(() => JSON.parse(document.getElementById('kw-boot').textContent));
+    const response = await page.request.post(`${BASE}${path}`, { data: body, headers: { 'X-CSRF-Token': boot.csrf, 'X-KW-Company': boot.companyKey } });
     return { status: response.status(), json: await response.json().catch(() => ({})) };
   };
   await a.goto(sig1Url);
@@ -565,6 +594,7 @@ try {
   await a.click('.table tbody tr:nth-child(1) form[action$="/duplicar"] button');
   await a.waitForURL(/\/assinaturas\/\d+$/);
   check('duplicar abre a cópia para edição', (await a.inputValue('#f-name')) === 'Ana Souza (cópia)');
+  check('duplicar avisa na própria tela do editor', await a.isVisible('.toast:has-text("duplicada")'));
   const copyUrl = a.url();
   await a.goto(`${BASE}/assinaturas`);
   const before = await a.locator('.table tbody tr').count();
@@ -604,6 +634,24 @@ try {
   check('administrador vê a área da empresa escolhida', (await admin.textContent('.acting-bar')).includes('Beta Engenharia'));
   check('dentro da empresa B, o administrador também não vê assinaturas da A', (await admin.request.get(sig1Url)).status() === 404);
   await shot(admin, '17-admin-na-empresa');
+  // Duas abas: o administrador abre o padrão da empresa B e, em outra aba, entra na empresa A.
+  await admin.goto(`${BASE}/padrao`);
+  await admin.click('[data-panel-tab="dados"]');
+  await admin.fill('#f-website', 'site-da-beta.com.br');
+  const otherTab = await adminContext.newPage();
+  await otherTab.goto(companyAUrl);
+  await otherTab.click('button:has-text("Abrir área da empresa")');
+  await otherTab.waitForURL(`${BASE}/assinaturas`);
+  await admin.click('.editor-actions [data-action="save"]');
+  await admin.waitForSelector('.toast-error');
+  check('salvar em uma aba depois de trocar de empresa em outra é recusado', (await admin.textContent('.toast-error')).includes('mudou em outra aba'));
+  await otherTab.goto(`${BASE}/padrao`);
+  await otherTab.click('[data-panel-tab="dados"]');
+  check('o padrão da outra empresa não foi alterado', (await otherTab.inputValue('#f-website')) === 'agroconexao.com.br');
+  await otherTab.close();
+  admin.once('dialog', (dialog) => dialog.accept());
+  await admin.goto(`${BASE}/admin`);
+  await admin.goto(`${BASE}/assinaturas`);
   await admin.click('.acting-bar button');
   await admin.waitForURL(`${BASE}/admin`);
 
@@ -667,6 +715,7 @@ try {
   await guestPage.click('button[type="submit"]');
   await guestPage.waitForURL(`${BASE}/assinaturas`);
   check('nova senha funciona', true);
+  check('trocar a senha desconecta as sessões abertas em outros aparelhos', (await b.request.get(`${BASE}/assinaturas`, { maxRedirects: 0 })).status() === 303);
   await guestPage.click('button:has-text("Sair")');
   await guestPage.waitForURL(`${BASE}/entrar`);
   for (let attempt = 0; attempt < 9; attempt++) {

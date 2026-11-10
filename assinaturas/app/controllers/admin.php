@@ -7,20 +7,20 @@ function admin_companies(): void
 {
     require_admin();
     $search = isset($_GET['q']) && is_string($_GET['q']) ? trim(mb_substr($_GET['q'], 0, 100)) : '';
-    $where = '';
-    $params = [];
-    if ($search !== '') {
-        $where = "WHERE LOWER(c.name) LIKE ? ESCAPE '!'";
-        $params[] = db_like(mb_strtolower($search));
-    }
     $companies = db_all(
         "SELECT c.*,
                 (SELECT COUNT(*) FROM users u WHERE u.company_id = c.id) AS user_count,
                 (SELECT COUNT(*) FROM signatures s WHERE s.company_id = c.id) AS signature_count,
                 (SELECT COUNT(*) FROM invites i WHERE i.company_id = c.id AND i.accepted_at IS NULL AND i.cancelled_at IS NULL AND i.expires_at > ?) AS invite_count
-           FROM companies c $where ORDER BY c.name",
-        array_merge([now_utc()], $params)
+           FROM companies c ORDER BY c.name",
+        [now_utc()]
     );
+    if ($search !== '') {
+        // Filtro feito aqui para tratar acentos e maiúsculas do mesmo jeito em MySQL e SQLite.
+        $companies = array_values(array_filter($companies, static function (array $company) use ($search): bool {
+            return mb_stripos($company['name'], $search) !== false;
+        }));
+    }
     render('admin/empresas', ['title' => 'Empresas', 'companies' => $companies, 'search' => $search]);
 }
 

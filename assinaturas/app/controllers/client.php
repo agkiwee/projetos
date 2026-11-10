@@ -35,7 +35,7 @@ function client_list(): void
     render('cliente/lista', [
         'title' => 'Assinaturas', 'company' => $company, 'signatures' => $signatures,
         'search' => $search, 'total' => $total, 'hasDefault' => $company['default_data'] !== null,
-        'boot' => ['baseUrl' => app_url(), 'csrf' => csrf_token(), 'base' => base_path()],
+        'boot' => ['baseUrl' => app_url(), 'csrf' => csrf_token(), 'base' => base_path(), 'companyKey' => $company['public_key']],
     ]);
 }
 
@@ -46,6 +46,8 @@ function editor_boot(array $company, string $mode, array $data, ?array $signatur
         'base' => base_path(),
         'baseUrl' => app_url(),
         'csrf' => csrf_token(),
+        'companyKey' => $company['public_key'],
+        'flashes' => take_flashes(), // o editor mostra os avisos pendentes como notificações
         'company' => ['name' => $company['name']],
         'data' => $data,
         'default' => company_default($company),

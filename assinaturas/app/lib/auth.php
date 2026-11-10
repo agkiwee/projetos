@@ -13,6 +13,15 @@ function session_boot(): void
     }
     ini_set('session.use_strict_mode', '1');
     ini_set('session.use_only_cookies', '1');
+    // Sem isto, o servidor apaga sessões paradas há 24 minutos e o trabalho aberto no editor se perde.
+    ini_set('session.gc_maxlifetime', (string) KW_SESSION_IDLE_SECONDS);
+    // Pasta própria: em hospedagem compartilhada, outros sites limpam a pasta comum de sessões.
+    $sessions = KW_ROOT . '/storage/sessions';
+    if (is_dir($sessions) || @mkdir($sessions, 0700, true) || is_dir($sessions)) {
+        if (is_writable($sessions)) {
+            session_save_path($sessions);
+        }
+    }
     session_name('kwsess');
     session_set_cookie_params([
         'lifetime' => 0,
@@ -88,6 +97,11 @@ function current_user(): ?array
         logout_user();
         return null;
     }
+    // Trocar ou redefinir a senha encerra as sessões abertas em outros aparelhos.
+    if (!hash_equals(password_fingerprint((string) $row['password_hash']), (string) ($_SESSION['pw'] ?? ''))) {
+        logout_user();
+        return null;
+    }
     return $user = $row;
 }
 
@@ -112,10 +126,17 @@ function is_admin(?array $user = null): bool
     return $user !== null && $user['role'] === 'admin';
 }
 
+/** Marca curta da senha atual, guardada na sessão para detectar a troca de senha. */
+function password_fingerprint(string $passwordHash): string
+{
+    return substr(hash('sha256', $passwordHash), 0, 24);
+}
+
 function login_user(array $user): void
 {
     session_regenerate_id(true);
-    $_SESSION = ['user_id' => (int) $user['id'], 'last_seen' => time()];
+    $hash = (string) ($user['password_hash'] ?? db_value('SELECT password_hash FROM users WHERE id = ?', [(int) $user['id']]));
+    $_SESSION = ['user_id' => (int) $user['id'], 'last_seen' => time(), 'pw' => password_fingerprint($hash)];
     csrf_token();
     db_update('users', ['last_login_at' => now_utc()], 'id = ?', [(int) $user['id']]);
 }
@@ -166,12 +187,20 @@ function require_company(): array
             }
             redirect('/admin');
         }
-        return $company;
+    } else {
+        $company = db_one('SELECT * FROM companies WHERE id = ?', [(int) $user['company_id']]);
+        if ($company === null || $company['status'] !== 'active') {
+            logout_user();
+            redirect('/entrar');
+        }
     }
-    $company = db_one('SELECT * FROM companies WHERE id = ?', [(int) $user['company_id']]);
-    if ($company === null || $company['status'] !== 'active') {
-        logout_user();
-        redirect('/entrar');
+    // A tela informa para qual empresa está gravando. Se o administrador abriu outra empresa em outra aba,
+    // a gravação é recusada em vez de cair na empresa errada.
+    if (wants_json() && request_method() === 'POST') {
+        $sent = (string) ($_SERVER['HTTP_X_KW_COMPANY'] ?? '');
+        if (!hash_equals((string) $company['public_key'], $sent)) {
+            json_out(['ok' => false, 'error' => 'A empresa em uso mudou em outra aba. Recarregue esta página antes de continuar.'], 409);
+        }
     }
     return $company;
 }
@@ -190,26 +219,51 @@ function password_problem(string $password, string $confirm): ?string
     return null;
 }
 
+/** Conta um evento de limite de tentativas. A chave é resumida para caber na coluna com qualquer e-mail. */
+function throttle_hit(string $key): void
+{
+    db_insert('login_attempts', ['attempt_key' => sha1($key), 'created_at' => time()]);
+    if (random_int(1, 20) === 1) {
+        db_run('DELETE FROM login_attempts WHERE created_at < ?', [time() - 86400]);
+    }
+}
+
+function throttle_count(string $key): int
+{
+    return (int) db_value(
+        'SELECT COUNT(*) FROM login_attempts WHERE attempt_key = ? AND created_at > ?',
+        [sha1($key), time() - KW_LOGIN_WINDOW_SECONDS]
+    );
+}
+
+function throttle_clear(string $key): void
+{
+    db_run('DELETE FROM login_attempts WHERE attempt_key = ?', [sha1($key)]);
+}
+
+/**
+ * Limite de tentativas de login.
+ * O bloqueio principal vale para o par e-mail e endereço IP, para que um terceiro não consiga
+ * trancar a conta de outra pessoa errando a senha de propósito. Há tetos mais altos por e-mail e por IP.
+ */
 function login_throttled(string $email): bool
 {
-    $since = time() - KW_LOGIN_WINDOW_SECONDS;
-    $count = static function (string $key) use ($since): int {
-        return (int) db_value('SELECT COUNT(*) FROM login_attempts WHERE attempt_key = ? AND created_at > ?', [$key, $since]);
-    };
-    // Limite por e-mail e um limite mais folgado por endereço IP (redes compartilhadas).
-    return $count('e:' . $email) >= KW_LOGIN_MAX_ATTEMPTS || $count('i:' . client_ip()) >= KW_LOGIN_MAX_ATTEMPTS * 4;
+    return throttle_count('login:' . $email . '|' . client_ip()) >= KW_LOGIN_MAX_ATTEMPTS
+        || throttle_count('login-email:' . $email) >= KW_LOGIN_MAX_ATTEMPTS * 5
+        || throttle_count('login-ip:' . client_ip()) >= KW_LOGIN_MAX_ATTEMPTS * 4;
 }
 
 function login_record_failure(string $email): void
 {
-    db_insert('login_attempts', ['attempt_key' => 'e:' . $email, 'created_at' => time()]);
-    db_insert('login_attempts', ['attempt_key' => 'i:' . client_ip(), 'created_at' => time()]);
-    db_run('DELETE FROM login_attempts WHERE created_at < ?', [time() - 86400]);
+    throttle_hit('login:' . $email . '|' . client_ip());
+    throttle_hit('login-email:' . $email);
+    throttle_hit('login-ip:' . client_ip());
 }
 
 function login_clear_failures(string $email): void
 {
-    db_run('DELETE FROM login_attempts WHERE attempt_key = ?', ['e:' . $email]);
+    throttle_clear('login:' . $email . '|' . client_ip());
+    throttle_clear('login-email:' . $email);
 }
 
 /** Cria um convite e devolve o link que deve ser enviado à pessoa convidada. */

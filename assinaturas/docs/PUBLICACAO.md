@@ -5,6 +5,7 @@ Este guia publica a plataforma em `https://assinatura.agkiwee.com.br`. Para usar
 ## O que o servidor precisa ter
 
 * PHP 8.0 ou mais novo, com as extensões `gd`, `curl`, `mbstring`, `pdo_mysql` e `fileinfo`. No cPanel, confira em **Selecionar versão do PHP**.
+* Limite de envio de arquivos de pelo menos 4 MB. No mesmo lugar, em **Opções**, deixe `upload_max_filesize` e `post_max_size` em 8M.
 * MySQL ou MariaDB.
 * Apache ou LiteSpeed com `.htaccess` ativo (padrão no cPanel).
 * HTTPS no subdomínio. Sem HTTPS as imagens não aparecem nos e-mails e o botão de copiar fica limitado.
@@ -66,7 +67,7 @@ Envie o conteúdo da pasta `assinaturas/` para `assinatura.agkiwee.com.br` pelo 
    * `db`: nome do banco, usuário e senha criados no passo 2.
    * `mail`: veja o item 6.
    * `setup_key`: troque por um texto longo e aleatório.
-3. Confira se as pastas `storage`, `public/uploads` e `public/icones` têm permissão de escrita (755).
+3. Confira se as pastas `storage`, `public/uploads` e `public/icones` têm permissão de escrita (755). As sessões de login ficam em `storage/sessions`, criada sozinha.
 
 ## 5. Instalar
 

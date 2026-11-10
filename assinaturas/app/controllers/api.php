@@ -3,6 +3,16 @@ declare(strict_types=1);
 
 /* API usada pelo editor. Responde em JSON e segue as mesmas regras de acesso das páginas. */
 
+/**
+ * Mantém a sessão viva enquanto o editor está aberto e entrega o token de segurança atual.
+ * Também serve para o editor se recuperar depois de um novo login feito em outra aba.
+ */
+function api_session(): void
+{
+    $company = require_company();
+    json_out(['ok' => true, 'csrf' => csrf_token(), 'companyKey' => $company['public_key']]);
+}
+
 function api_signature_name(array $data): string
 {
     $name = trim((string) ($data['fields']['name']['value'] ?? ''));
@@ -123,11 +133,15 @@ function api_asset_upload(): void
     $kind = input('tipo', 20);
     $file = $_FILES['arquivo'] ?? null;
 
+    $limit = min(IMG_MAX_UPLOAD_BYTES, upload_limit_bytes());
+    $tooBig = 'O arquivo passa do limite de ' . format_megabytes($limit) . '. Reduza a imagem e envie de novo.';
     if (!is_array($file) || !isset($file['error']) || is_array($file['error'])) {
-        json_out(['ok' => false, 'error' => 'Nenhum arquivo foi recebido.'], 422);
+        // Quando o envio passa do limite do PHP, o arquivo nem chega até aqui.
+        $sentBytes = (int) ($_SERVER['CONTENT_LENGTH'] ?? 0);
+        json_out(['ok' => false, 'error' => $sentBytes > $limit ? $tooBig : 'Nenhum arquivo foi recebido.'], 422);
     }
-    if (in_array($file['error'], [UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE], true) || $file['size'] > IMG_MAX_UPLOAD_BYTES) {
-        json_out(['ok' => false, 'error' => 'O arquivo tem mais de 4 MB. Reduza a imagem e envie de novo.'], 422);
+    if (in_array($file['error'], [UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE], true) || $file['size'] > $limit) {
+        json_out(['ok' => false, 'error' => $tooBig], 422);
     }
     if ($file['error'] !== UPLOAD_ERR_OK || !is_uploaded_file($file['tmp_name'])) {
         json_out(['ok' => false, 'error' => 'O envio do arquivo falhou. Tente de novo.'], 422);

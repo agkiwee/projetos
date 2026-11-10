@@ -103,9 +103,10 @@ O último precisa do Playwright com Chromium. Com `SHOTS=1` ele grava capturas d
 
 * Senhas guardadas com `password_hash`. Convites e redefinições guardam só o resumo do código.
 * Toda alteração exige o token da sessão (CSRF). Limite de tentativas de login.
-* O usuário e a empresa são relidos do banco a cada requisição. Suspender vale na hora.
+* O usuário e a empresa são relidos do banco a cada requisição. Suspender vale na hora. Trocar a senha encerra as sessões de outros aparelhos.
 * A empresa vem sempre da sessão. Toda consulta de assinatura e de arquivo leva o id da empresa. Recurso de outra empresa responde "não encontrado".
-* Imagens enviadas são regravadas pelo servidor e recebem nomes aleatórios. A pasta de envios não executa scripts.
+* Toda imagem enviada é regravada pelo servidor como PNG e recebe nome aleatório. A pasta de envios não executa scripts.
+* Cada gravação do editor informa a empresa em uso. O servidor recusa se ela mudou em outra aba.
 * A importação por URL só aceita https, bloqueia redes internas e confere cada redirecionamento.
 * Política de conteúdo restrita: sem scripts em linha e sem recursos de terceiros.
 
