@@ -1,0 +1,10 @@
+# Usado apenas quando a raiz do site aponta para esta pasta em vez de public/.
+# O recomendado é apontar o subdomínio direto para a pasta public (veja docs/PUBLICACAO.md).
+Options -Indexes
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^(app|storage|bin|tests|tools|docs)(/|$) - [F,L]
+    RewriteRule ^config(\.sample)?\.php$ - [F,L]
+    RewriteCond %{REQUEST_URI} !/public/
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>

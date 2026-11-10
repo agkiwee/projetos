@@ -1,0 +1,13 @@
+/config.php
+/storage/*
+!/storage/.gitkeep
+!/storage/.htaccess
+/public/uploads/*
+!/public/uploads/.gitkeep
+!/public/uploads/.htaccess
+/public/icones/*
+!/public/icones/.gitkeep
+!/public/icones/.htaccess
+/tools/node_modules/
+/tests/.tmp/
+/node_modules/

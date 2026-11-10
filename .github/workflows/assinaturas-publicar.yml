@@ -1,0 +1,76 @@
+name: Publicar assinaturas
+
+# Envia a pasta assinaturas/ para o cPanel por FTP.
+# Antes do primeiro uso, crie os segredos FTP_SERVER, FTP_USERNAME e FTP_PASSWORD
+# em Settings > Secrets and variables > Actions. Veja assinaturas/docs/PUBLICACAO.md.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'assinaturas/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publicar-assinaturas
+  cancel-in-progress: false
+
+jobs:
+  publicar:
+    name: Publicar no cPanel
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Conferir os segredos de FTP
+        id: segredos
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+        run: |
+          if [ -z "$FTP_SERVER" ] || [ -z "$FTP_USERNAME" ] || [ -z "$FTP_PASSWORD" ]; then
+            echo "pronto=nao" >> "$GITHUB_OUTPUT"
+            echo "Publicação não realizada: faltam os segredos FTP_SERVER, FTP_USERNAME e FTP_PASSWORD." >> "$GITHUB_STEP_SUMMARY"
+            echo "::notice::Publicação não realizada: crie os segredos de FTP descritos em assinaturas/docs/PUBLICACAO.md."
+          else
+            echo "pronto=sim" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: shivammathur/setup-php@v2
+        if: steps.segredos.outputs.pronto == 'sim'
+        with:
+          php-version: '8.3'
+          extensions: gd, curl, mbstring, pdo_sqlite, exif, fileinfo
+          coverage: none
+
+      - name: Testar antes de publicar
+        if: steps.segredos.outputs.pronto == 'sim'
+        working-directory: assinaturas
+        run: |
+          find app public bin -name '*.php' -print0 | xargs -0 -n1 php -l
+          php tests/unit.php
+          node --test tests/renderer.test.mjs
+
+      - name: Enviar os arquivos por FTP
+        if: steps.segredos.outputs.pronto == 'sim'
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ${{ vars.FTP_PROTOCOL || 'ftps' }}
+          local-dir: ./assinaturas/
+          server-dir: ${{ vars.FTP_SERVER_DIR || './' }}
+          # O config.php, as imagens dos clientes e o conteúdo de storage ficam só no servidor e nunca são apagados.
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/node_modules/**
+            tests/**
+            tools/**
+            docs/**
+            config.php

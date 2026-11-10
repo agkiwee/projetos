@@ -1,0 +1,6 @@
+# Ícones já gerados para assinaturas salvas. Arquivos estáticos, com cache longo.
+Options -Indexes
+<IfModule mod_headers.c>
+    Header set Cache-Control "public, max-age=2592000"
+    Header set X-Content-Type-Options "nosniff"
+</IfModule>

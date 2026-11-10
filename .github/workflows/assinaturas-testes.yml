@@ -1,0 +1,87 @@
+name: Testes das assinaturas
+
+on:
+  pull_request:
+    paths:
+      - 'assinaturas/**'
+      - '.github/workflows/assinaturas-*.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'assinaturas/**'
+      - '.github/workflows/assinaturas-*.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: assinaturas-testes-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  regras:
+    name: Regras do servidor (PHP ${{ matrix.php }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.0', '8.3']
+    defaults:
+      run:
+        working-directory: assinaturas
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: gd, curl, mbstring, pdo_sqlite, exif, fileinfo
+          coverage: none
+      - name: Conferir a sintaxe dos arquivos PHP
+        run: find app public bin tests config.sample.php -name '*.php' -print0 | xargs -0 -n1 php -l
+      - name: Testar as regras do servidor
+        run: php tests/unit.php
+
+  navegador:
+    name: Gerador de HTML e fluxo completo no navegador
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: assinaturas
+    services:
+      mariadb:
+        image: mariadb:10.11
+        env:
+          MARIADB_DATABASE: kw_teste
+          MARIADB_USER: kw_teste
+          MARIADB_PASSWORD: senha-so-do-teste
+          MARIADB_RANDOM_ROOT_PASSWORD: '1'
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: gd, curl, mbstring, pdo_sqlite, pdo_mysql, exif, fileinfo
+          coverage: none
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Testar o gerador do HTML da assinatura
+        run: node --test tests/renderer.test.mjs
+      - name: Testar o envio de e-mail por SMTP
+        run: node tests/smtp.test.mjs
+      - name: Instalar o navegador de teste
+        run: |
+          npm install --no-save --no-audit --no-fund playwright@1.63.0
+          npx playwright install --with-deps chromium
+      - name: Fluxo completo com SQLite
+        run: node tests/e2e.mjs
+      - name: Fluxo completo com MariaDB
+        env:
+          KW_TEST_DB: mysql
+          KW_TEST_DB_PASS: senha-so-do-teste
+        run: node tests/e2e.mjs

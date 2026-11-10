@@ -1,0 +1,13 @@
+{
+  "name": "kiwee-assinaturas-tools",
+  "private": true,
+  "description": "Ferramentas de desenvolvimento: geração das máscaras de ícones e testes de ponta a ponta.",
+  "type": "module",
+  "scripts": {
+    "icones": "node build-icons.mjs"
+  },
+  "devDependencies": {
+    "lucide-static": "^0.460.0",
+    "simple-icons": "^13.21.0"
+  }
+}
