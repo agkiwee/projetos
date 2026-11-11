@@ -16,6 +16,10 @@ function page_login(): void
     if (current_user() !== null) {
         redirect('/');
     }
+    // Instalação ainda sem administrador: leva direto para a configuração inicial.
+    if (setup_available()) {
+        redirect('/instalar');
+    }
     render('auth/entrar', ['title' => 'Entrar', 'shell' => 'guest', 'email' => '', 'error' => null]);
 }
 

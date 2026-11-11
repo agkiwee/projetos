@@ -13,12 +13,12 @@ function full() {
   data.fields.title.value = 'Gerente de Marketing';
   data.fields.department.value = 'Marketing';
   data.fields.company.value = 'Empresa Exemplo';
-  data.fields.phone.value = '(11) 2970-3020';
-  data.fields.mobile.value = '(65) 99689-3826';
-  data.fields.whatsapp.value = '65 99689-3826';
+  data.fields.phone.value = '(11) 3000-1000';
+  data.fields.mobile.value = '(65) 99999-1234';
+  data.fields.whatsapp.value = '65 99999-1234';
   data.fields.email.value = 'ana@exemplo.com.br';
   data.fields.website.value = 'www.exemplo.com.br';
-  data.fields.address.value = 'Avenida Brasil, 188\nCampo Verde/MT';
+  data.fields.address.value = 'Rua das Flores, 100\nCuiabá/MT';
   data.logo = { url: '/uploads/abcdefghij0123456789/aaaaaaaaaaaaaaaaaaaaaaaa.png', link: 'exemplo.com.br', width: 150, ratio: 0.3, show: true };
   data.photo = { url: '/uploads/abcdefghij0123456789/bbbbbbbbbbbbbbbbbbbbbbbb.png', urlCircle: '/uploads/abcdefghij0123456789/bbbbbbbbbbbbbbbbbbbbbbbb-c.png', size: 88, shape: 'circle', show: true };
   data.banner = { url: 'https://cdn.exemplo.com.br/banner.png', link: 'https://exemplo.com.br/campanha', alt: 'Campanha de verão', width: 420, ratio: 0.25, show: true };
@@ -51,8 +51,8 @@ for (const template of R.TEMPLATES) {
     assert.ok(html.includes('Ana Souza') && html.includes('Gerente de Marketing'), 'texto real e selecionável');
     assert.ok(html.includes('font-family:Arial, Helvetica, sans-serif'), 'fonte com reservas');
     assert.ok(html.includes('href="mailto:ana@exemplo.com.br"'), 'e-mail clicável');
-    assert.ok(html.includes('href="tel:+551129703020"'), 'telefone clicável');
-    assert.ok(html.includes('href="https://wa.me/5565996893826"'), 'WhatsApp clicável');
+    assert.ok(html.includes('href="tel:+551130001000"'), 'telefone clicável');
+    assert.ok(html.includes('href="https://wa.me/5565999991234"'), 'WhatsApp clicável');
     assert.ok(html.includes('href="https://www.exemplo.com.br"'), 'site clicável');
     assert.ok(html.length < R.GMAIL_LIMIT, `cabe no limite do Gmail (${html.length})`);
   });
@@ -87,7 +87,7 @@ test('campos vazios e ocultos somem sem deixar linha, ícone ou divisória', () 
 
 test('divisórias só aparecem entre blocos que existem', () => {
   const data = R.defaults();
-  data.fields.phone.value = '(11) 2970-3020';
+  data.fields.phone.value = '(11) 3000-1000';
   assert.ok(!/border-top/.test(R.render(data, OPTIONS).html), 'só contatos: sem divisória');
   data.fields.name.value = 'Ana';
   assert.ok(/border-top:1px solid/.test(R.render(data, OPTIONS).html), 'nome e contatos: com divisória');
@@ -170,10 +170,10 @@ test('links e imagens perigosos são descartados', () => {
 });
 
 test('telefones brasileiros ganham o código do país nos links', () => {
-  assert.equal(R.phoneDigits('(11) 2970-3020'), '551129703020');
-  assert.equal(R.phoneDigits('065 99689-3826'), '5565996893826');
+  assert.equal(R.phoneDigits('(11) 3000-1000'), '551130001000');
+  assert.equal(R.phoneDigits('065 99999-1234'), '5565999991234');
   assert.equal(R.phoneDigits('+1 (415) 555-0100'), '14155550100');
-  assert.equal(R.phoneDigits('+55 11 2970-3020'), '551129703020');
+  assert.equal(R.phoneDigits('+55 11 3000-1000'), '551130001000');
   assert.equal(R.phoneDigits('ramal'), '');
 });
 
@@ -223,5 +223,5 @@ test('ordem dos contatos é respeitada', () => {
   const data = full();
   data.order = ['email', 'address', 'phone', 'mobile', 'whatsapp', 'website'];
   const { html } = R.render(data, OPTIONS);
-  assert.ok(html.indexOf('mailto:') < html.indexOf('maps/search') && html.indexOf('maps/search') < html.indexOf('tel:+551129703020'));
+  assert.ok(html.indexOf('mailto:') < html.indexOf('maps/search') && html.indexOf('maps/search') < html.indexOf('tel:+551130001000'));
 });

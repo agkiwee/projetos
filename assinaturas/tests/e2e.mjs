@@ -242,9 +242,9 @@ try {
   await a.goto(`${BASE}/padrao`);
   await a.click('[data-panel-tab="dados"]');
   check('no padrão, dados pessoais ficam para cada assinatura', await a.isDisabled('#f-name'));
-  await a.fill('#f-phone', '(11) 2970-3020');
-  await a.fill('#f-website', 'agroconexao.com.br');
-  await a.fill('#f-address', 'Avenida Brasil, 188, sala 2\nCampo Verde/MT CEP 78840-085');
+  await a.fill('#f-phone', '(11) 3000-1000');
+  await a.fill('#f-website', 'agroconexao.example');
+  await a.fill('#f-address', 'Rua das Flores, 100, sala 2\nCuiabá/MT CEP 78000-000');
   await a.click('[data-panel-tab="imagens"]');
   await a.click('[data-image-slot="logo"] [data-action="pick-image"]');
   await a.setInputFiles('[data-upload-input]', join(here, 'fixtures', 'logo.png'));
@@ -290,16 +290,16 @@ try {
   await a.waitForSelector('[data-editor]');
   await a.click('.editor-actions [data-action="save"]');
   check('assinatura sem nome não é salva', await a.isVisible('.toast-error'));
-  await a.fill('#f-name', 'Bruno Mamede');
+  await a.fill('#f-name', 'Bruno Almeida');
   await a.fill('#f-title', 'Gerente de Marketing');
-  await a.fill('#f-mobile', '(65) 99689-3826');
-  await a.fill('#f-email', 'bruno@agroconexao.com.br');
+  await a.fill('#f-mobile', '(65) 99999-1234');
+  await a.fill('#f-email', 'bruno@agroconexao.example');
   html = await previewHtml(a);
   check('nova assinatura herda logotipo, cores e links do padrão', html.includes(logoUrl) && html.includes('#2aa043') && html.includes('linkedin.png'));
-  check('prévia atualiza enquanto digita', html.includes('Bruno Mamede') && html.includes('Gerente de Marketing'));
-  check('telefone vira link clicável', html.includes('href="tel:+5565996893826"'));
-  check('e-mail vira link clicável', html.includes('href="mailto:bruno@agroconexao.com.br"'));
-  check('site ganha https', html.includes('href="https://agroconexao.com.br"'));
+  check('prévia atualiza enquanto digita', html.includes('Bruno Almeida') && html.includes('Gerente de Marketing'));
+  check('telefone vira link clicável', html.includes('href="tel:+5565999991234"'));
+  check('e-mail vira link clicável', html.includes('href="mailto:bruno@agroconexao.example"'));
+  check('site ganha https', html.includes('href="https://agroconexao.example"'));
   check('campo vazio (WhatsApp) não gera linha', !html.includes('whatsapp.png'));
   await saveEditor(a);
   const sig1Url = a.url();
@@ -312,7 +312,7 @@ try {
   await a.fill('#f-title', 'Diretora Comercial');
   await a.fill('#f-department', 'Vendas');
   await a.fill('#f-whatsapp', '11 98888-7777');
-  await a.fill('#f-email', 'ana@agroconexao.com.br');
+  await a.fill('#f-email', 'ana@agroconexao.example');
   await a.click('[data-panel-tab="imagens"]');
   await a.click('[data-image-slot="photo"] [data-action="pick-image"]');
   await a.setInputFiles('[data-upload-input]', join(here, 'fixtures', 'foto.jpg'));
@@ -327,11 +327,11 @@ try {
 
   await a.goto(`${BASE}/assinaturas`);
   const names = await a.locator('.table .row-title').allTextContents();
-  check('lista mostra as assinaturas pelo nome, em ordem alfabética', names.join('|') === 'Ana Souza|Bruno Mamede', names.join('|'));
+  check('lista mostra as assinaturas pelo nome, em ordem alfabética', names.join('|') === 'Ana Souza|Bruno Almeida', names.join('|'));
   await shot(a, '12-lista');
   await a.fill('#q', 'marketing');
   await a.click('.search-bar button[type="submit"]');
-  check('busca por cargo encontra só o colaborador certo', (await a.locator('.table .row-title').allTextContents()).join('|') === 'Bruno Mamede');
+  check('busca por cargo encontra só o colaborador certo', (await a.locator('.table .row-title').allTextContents()).join('|') === 'Bruno Almeida');
   await a.fill('#q', 'ANA@AGRO');
   await a.click('.search-bar button[type="submit"]');
   check('busca por e-mail ignora maiúsculas', (await a.locator('.table .row-title').allTextContents()).join('|') === 'Ana Souza');
@@ -341,38 +341,38 @@ try {
 
   section('6. Reabrir e editar cada assinatura');
   await a.goto(sig1Url);
-  check('dados salvos voltam ao reabrir', (await a.inputValue('#f-name')) === 'Bruno Mamede' && (await a.inputValue('#f-mobile')) === '(65) 99689-3826');
+  check('dados salvos voltam ao reabrir', (await a.inputValue('#f-name')) === 'Bruno Almeida' && (await a.inputValue('#f-mobile')) === '(65) 99999-1234');
   await a.fill('#f-title', 'Diretor de Marketing');
   await a.click('[data-panel-tab="modelo"]');
   await a.click('[data-template="destaque"]');
   html = await previewHtml(a);
-  check('trocar de modelo preserva os dados', html.includes('Bruno Mamede') && html.includes('Diretor de Marketing') && html.includes('border-left:3px solid'));
+  check('trocar de modelo preserva os dados', html.includes('Bruno Almeida') && html.includes('Diretor de Marketing') && html.includes('border-left:3px solid'));
   await a.click('[data-template="horizontal"]');
   await a.click('[data-panel-tab="dados"]');
   await a.uncheck('[data-bind="fields.address.show"]');
   html = await previewHtml(a);
-  check('campo oculto some da assinatura', !html.includes('Campo Verde'));
+  check('campo oculto some da assinatura', !html.includes('Cuiabá'));
   await a.click('[data-move="email"][data-dir="-1"]');
   await a.click('[data-move="email"][data-dir="-1"]');
   await a.click('[data-move="email"][data-dir="-1"]');
   html = await previewHtml(a);
-  check('ordem dos contatos pode ser alterada', html.indexOf('mailto:') < html.indexOf('tel:+551129703020'));
+  check('ordem dos contatos pode ser alterada', html.indexOf('mailto:') < html.indexOf('tel:+551130001000'));
   await saveEditor(a);
   await a.reload();
   html = await previewHtml(a);
-  check('edição persiste depois de recarregar', (await a.inputValue('#f-title')) === 'Diretor de Marketing' && !html.includes('Campo Verde')
-    && html.indexOf('mailto:') < html.indexOf('tel:+551129703020'));
+  check('edição persiste depois de recarregar', (await a.inputValue('#f-title')) === 'Diretor de Marketing' && !html.includes('Cuiabá')
+    && html.indexOf('mailto:') < html.indexOf('tel:+551130001000'));
 
   await a.goto(sig2Url);
   html = await previewHtml(a);
-  check('alterar uma assinatura não muda a outra', html.includes('Diretora Comercial') && html.includes('Campo Verde') && (await a.inputValue('#f-name')) === 'Ana Souza');
+  check('alterar uma assinatura não muda a outra', html.includes('Diretora Comercial') && html.includes('Cuiabá') && (await a.inputValue('#f-name')) === 'Ana Souza');
   await a.fill('#f-department', 'Comercial');
   await saveEditor(a);
   await a.reload();
   check('segunda assinatura também reabre e salva', (await a.inputValue('#f-department')) === 'Comercial');
   await a.goto(`${BASE}/padrao`);
   await a.click('[data-panel-tab="dados"]');
-  check('editar assinaturas não altera o modelo padrão', (await a.inputValue('#f-address')).includes('Campo Verde') && await a.isChecked('[data-bind="fields.address.show"]'));
+  check('editar assinaturas não altera o modelo padrão', (await a.inputValue('#f-address')).includes('Cuiabá') && await a.isChecked('[data-bind="fields.address.show"]'));
 
   section('6b. Editar de novo depois de salvar');
   await a.goto(sig1Url);
@@ -424,8 +424,8 @@ try {
     for (const type of items[0].types) { out[type] = await (await items[0].getType(type)).text(); }
     return out;
   });
-  check('copiar coloca a versão formatada (text/html) na área de transferência', (clip['text/html'] || '').includes('<table') && clip['text/html'].includes('Bruno Mamede'));
-  check('copiar também leva uma versão em texto simples', (clip['text/plain'] || '').startsWith('Bruno Mamede'));
+  check('copiar coloca a versão formatada (text/html) na área de transferência', (clip['text/html'] || '').includes('<table') && clip['text/html'].includes('Bruno Almeida'));
+  check('copiar também leva uma versão em texto simples', (clip['text/plain'] || '').startsWith('Bruno Almeida'));
 
   // Cola em uma área editável, como a caixa de assinatura de um cliente de e-mail na web.
   const paste = await contextA.newPage();
@@ -444,8 +444,8 @@ try {
     };
   });
   check('colagem mantém a estrutura em tabelas', pasted.tables > 0, JSON.stringify(pasted).slice(0, 200));
-  check('colagem mantém os links clicáveis', pasted.links.includes('mailto:bruno@agroconexao.com.br') && pasted.links.includes('tel:+5565996893826'));
-  check('colagem mantém o texto selecionável', pasted.text.includes('Bruno Mamede') && pasted.text.includes('Diretor de Marketing'));
+  check('colagem mantém os links clicáveis', pasted.links.includes('mailto:bruno@agroconexao.example') && pasted.links.includes('tel:+5565999991234'));
+  check('colagem mantém o texto selecionável', pasted.text.includes('Bruno Almeida') && pasted.text.includes('Diretor de Marketing'));
   await paste.waitForTimeout(600);
   const pastedImages = await paste.evaluate(() => Array.from(document.querySelectorAll('#caixa img')).map((image) => image.naturalWidth > 0 && image.alt !== ''));
   check('imagens coladas carregam e têm texto alternativo', pastedImages.length > 0 && pastedImages.every(Boolean), JSON.stringify(pastedImages));
@@ -454,7 +454,7 @@ try {
 
   const [download] = await Promise.all([a.waitForEvent('download'), a.click('.editor-actions [data-action="download"]')]);
   const file = readFileSync(await download.path(), 'utf8');
-  check('arquivo baixado tem nome do colaborador', download.suggestedFilename() === 'assinatura-bruno-mamede.html', download.suggestedFilename());
+  check('arquivo baixado tem nome do colaborador', download.suggestedFilename() === 'assinatura-bruno-almeida.html', download.suggestedFilename());
   check('HTML baixado é um documento completo em tabelas', file.startsWith('<!DOCTYPE html>') && file.includes('<table role="presentation"'));
   check('HTML baixado não usa JavaScript, CSS externo nem bloco de estilo', !/<script|<link|<style|@import|javascript:/i.test(file));
   check('toda imagem tem texto alternativo e endereço completo', (file.match(/<img /g) || []).length > 0
@@ -480,12 +480,12 @@ try {
   watch(guest, 'colaborador');
   await guest.goto(shareUrl);
   await guest.waitForSelector('[data-preview-frame]');
-  check('colaborador abre a assinatura sem login', (await previewHtml(guest)).includes('Bruno Mamede'));
+  check('colaborador abre a assinatura sem login', (await previewHtml(guest)).includes('Bruno Almeida'));
   check('página do colaborador traz instruções de Gmail, Outlook e Apple Mail', (await guest.locator('[data-tab]').allTextContents()).join('|') === 'Gmail|Outlook|Apple Mail');
   await shot(guest, '14-link-colaborador');
   check('link inválido não revela nada', (await anonymous.request.get(`${BASE}/i/${'0'.repeat(40)}`)).status() === 404);
   const sharedSource = await (await anonymous.request.get(shareUrl)).text();
-  check('campo oculto não aparece nem no código da página do colaborador', !sharedSource.includes('Campo Verde') && sharedSource.includes('Bruno Mamede'));
+  check('campo oculto não aparece nem no código da página do colaborador', !sharedSource.includes('Cuiabá') && sharedSource.includes('Bruno Almeida'));
 
   section('10. Importação de imagem por URL');
   const api = async (page, path, body) => {
@@ -568,7 +568,7 @@ try {
   result = await api(b, '/api/assinaturas', { data: { fields: { name: { value: 'Usa imagem alheia', show: true } }, logo: { url: assetsA.assets[0].url } } });
   check('assinatura da empresa B não pode apontar para arquivo da empresa A', result.status === 201 && result.json.data.logo.url === '');
   await a.goto(sig1Url);
-  check('assinatura da empresa A continua intacta', (await a.inputValue('#f-name')) === 'Bruno Mamede');
+  check('assinatura da empresa A continua intacta', (await a.inputValue('#f-name')) === 'Bruno Almeida');
   const noCsrf = await b.request.post(`${BASE}/api/assinaturas`, { data: { data: {} } });
   check('requisição sem token de segurança é recusada', noCsrf.status() === 419);
   const loggedOut = await anonymous.request.get(sig1Url, { maxRedirects: 0 });
@@ -647,7 +647,7 @@ try {
   check('salvar em uma aba depois de trocar de empresa em outra é recusado', (await admin.textContent('.toast-error')).includes('mudou em outra aba'));
   await otherTab.goto(`${BASE}/padrao`);
   await otherTab.click('[data-panel-tab="dados"]');
-  check('o padrão da outra empresa não foi alterado', (await otherTab.inputValue('#f-website')) === 'agroconexao.com.br');
+  check('o padrão da outra empresa não foi alterado', (await otherTab.inputValue('#f-website')) === 'agroconexao.example');
   await otherTab.close();
   admin.once('dialog', (dialog) => dialog.accept());
   await admin.goto(`${BASE}/admin`);
@@ -755,7 +755,7 @@ try {
     await a.click('[data-panel-tab="modelo"]');
     await a.click(`[data-template="${template}"]`);
     html = await previewHtml(a);
-    check(`modelo ${template} gera a assinatura com os dados`, html.includes('Bruno Mamede') && html.includes('<table'));
+    check(`modelo ${template} gera a assinatura com os dados`, html.includes('Bruno Almeida') && html.includes('<table'));
     if (SHOTS) {
       await a.waitForTimeout(350);
       await a.locator('[data-preview-stage]').screenshot({ path: join(shots, `modelo-${template}.png`) });
