@@ -62,6 +62,14 @@
     { id: 'plain', name: 'Só o símbolo' }
   ];
 
+  // Versão do conjunto de ícones no endereço. Mantenha igual a KW_ICON_VERSION em app/lib/icons.php.
+  var ICON_VERSION = 2;
+
+  function iconUrl(baseUrl, shape, colorValue, name) {
+    return String(baseUrl || '').replace(/\/+$/, '') + '/icones/' + ICON_VERSION + '/' + shape + '/' +
+      String(colorValue).replace('#', '') + '/' + name + '.png';
+  }
+
   function defaults() {
     var fields = {};
     FIELDS.forEach(function (key) { fields[key] = { value: '', show: true }; });
@@ -285,7 +293,7 @@
   };
 
   Builder.prototype.icon = function (name, size, colorValue, shape, alt) {
-    var src = this.baseUrl + '/icones/' + shape + '/' + colorValue.replace('#', '') + '/' + name + '.png';
+    var src = iconUrl(this.baseUrl, shape, colorValue, name);
     return '<img src="' + esc(src) + '" width="' + size + '" height="' + size + '" alt="' + esc(alt) +
       '" style="display:block;border:0;width:' + size + 'px;height:' + size + 'px;">';
   };
@@ -565,6 +573,6 @@
     TEMPLATES: TEMPLATES, FONTS: FONTS, FIELDS: FIELDS, CONTACT_FIELDS: CONTACT_FIELDS, FIELD_LABELS: FIELD_LABELS,
     ICON_LABELS: ICON_LABELS, ICON_SHAPES: ICON_SHAPES, GMAIL_LIMIT: 10000,
     defaults: defaults, normalize: normalize, render: render, plainText: plainText, documentHtml: documentHtml,
-    withSamples: withSamples, linkUrl: linkUrl, imageUrl: imageUrl, phoneDigits: phoneDigits
+    withSamples: withSamples, linkUrl: linkUrl, imageUrl: imageUrl, phoneDigits: phoneDigits, iconUrl: iconUrl
   };
 });

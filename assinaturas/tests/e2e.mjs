@@ -54,7 +54,10 @@ for (const file of ['e2e.sqlite', 'e2e.sqlite-wal', 'e2e.sqlite-shm']) {
 }
 const mailLog = join(root, 'storage', 'mail.log');
 rmSync(mailLog, { force: true });
-writeFileSync(join(tmp, 'e2e-config.php'), `<?php
+// O arquivo começa com uma linha em branco de propósito: é o erro mais comum ao criar o config.php à mão
+// no servidor, e não pode corromper imagens nem respostas da API.
+writeFileSync(join(tmp, 'e2e-config.php'), `
+<?php
 return [
     'app_url' => '${BASE}',
     'app_name' => 'KIWEE Assinaturas',
@@ -269,7 +272,7 @@ try {
   await a.selectOption('#f-font', 'Verdana');
   await a.waitForTimeout(400);
   html = await previewHtml(a);
-  check('cor da marca aplicada na prévia', html.includes('#2aa043') && html.includes('/icones/outline-square/2aa043/linkedin.png'));
+  check('cor da marca aplicada na prévia', html.includes('#2aa043') && html.includes('/icones/2/outline-square/2aa043/linkedin.png'));
   check('fonte escolhida tem fontes de reserva', html.includes('font-family:Verdana, Geneva, sans-serif'));
   check('rede sem endereço não aparece', !html.includes('facebook.png'));
   check('prévia do padrão usa dados de exemplo', html.includes('Nome do Colaborador'));
@@ -761,9 +764,17 @@ try {
       await a.locator('[data-preview-stage]').screenshot({ path: join(shots, `modelo-${template}.png`) });
     }
   }
-  const icon = await anonymous.request.get(`${BASE}/icones/circle/2aa043/instagram.png`);
+  const icon = await anonymous.request.get(`${BASE}/icones/2/circle/2aa043/instagram.png`);
+  const iconBytes = await icon.body();
+  check('ícone chega como PNG íntegro, sem nada antes da imagem', iconBytes.subarray(0, 8).toString('latin1') === '\x89PNG\r\n\x1a\n');
+  const oldIcon = await anonymous.request.get(`${BASE}/icones/circle/2aa043/instagram.png`);
+  check('endereço antigo de ícone continua valendo para assinaturas já instaladas', oldIcon.status() === 200 && (await oldIcon.body()).equals(iconBytes));
+  const savedIcon = await anonymous.request.get(`${BASE}/icones/2/outline-square/2aa043/linkedin.png`);
+  check('ícone gravado como arquivo também é um PNG íntegro', (await savedIcon.body()).subarray(0, 4).toString('latin1') === '\x89PNG');
+  const firstBytes = await (await anonymous.request.get(`${BASE}/entrar`)).text();
+  check('páginas começam direto no documento, sem linha em branco', firstBytes.startsWith('<!DOCTYPE html>'));
   check('ícone da biblioteca é entregue como PNG, sem login', icon.status() === 200 && icon.headers()['content-type'] === 'image/png');
-  check('ícone usado em assinatura salva fica gravado como arquivo', existsSync(join(root, 'public', 'icones', 'outline-square', '2aa043', 'linkedin.png')));
+  check('ícone usado em assinatura salva fica gravado como arquivo', existsSync(join(root, 'public', 'icones', '2', 'outline-square', '2aa043', 'linkedin.png')));
   check('ícone inexistente responde 404', (await anonymous.request.get(`${BASE}/icones/circle/2aa043/naoexiste.png`)).status() === 404);
   check('cor inválida responde 404', (await anonymous.request.get(`${BASE}/icones/circle/zzzzzz/instagram.png`)).status() === 404);
 

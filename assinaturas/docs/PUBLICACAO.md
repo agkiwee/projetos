@@ -1,6 +1,6 @@
-# Publicação no cPanel
+# Publicação no servidor
 
-Este guia publica a plataforma em `https://assinatura.agkiwee.com.br`. Para usar outro endereço, troque o nome nos passos e o valor de `app_url` no `config.php`. Nada mais precisa mudar.
+Este guia publica a plataforma em `https://assinatura.agkiwee.com.br`. Os passos usam o cPanel como exemplo e valem para outros painéis, como o CyberPanel. As diferenças estão na seção "Outros painéis e Cloudflare". Para usar outro endereço, troque o nome nos passos e o valor de `app_url` no `config.php`. Nada mais precisa mudar.
 
 ## O que o servidor precisa ter
 
@@ -48,10 +48,13 @@ FTP_PASSWORD
 
 3. Faça o merge do pull request na branch principal ou rode o fluxo manualmente em **Actions**, **Publicar assinaturas**, **Run workflow**.
 
-Dois ajustes opcionais ficam em **Variables**, na mesma tela dos segredos:
+Os ajustes opcionais ficam em **Variables**, na mesma tela dos segredos:
 
-* `FTP_SERVER_DIR`: pasta de destino dentro da conta de FTP. O padrão é `./`, a pasta inicial da conta.
+* `FTP_SERVER_DIR`: pasta do sistema dentro da conta de FTP. O padrão é `./`, a pasta inicial da conta.
+* `FTP_PUBLIC_DIR`: preencha quando a pasta pública do servidor tem outro nome, por exemplo `public_html/`, sempre com a barra no final. O conteúdo de `public` vai para ela e o restante vai para `FTP_SERVER_DIR`.
 * `FTP_PROTOCOL`: o padrão é `ftps`, que é o FTP com criptografia. Use `ftp` só se a hospedagem não aceitar `ftps`.
+
+Para publicar uma correção sem esperar o merge, rode o fluxo à mão em **Actions**, **Publicar assinaturas**, **Run workflow**, escolhendo a branch da correção. Isso só fica disponível depois que o fluxo existir na branch principal.
 
 O fluxo nunca apaga o `config.php`, as imagens enviadas pelos clientes nem o conteúdo de `storage`. Enquanto os segredos não existirem, ele termina sem publicar e avisa no resumo.
 
@@ -93,6 +96,27 @@ Se um e-mail não puder ser enviado, o painel avisa e mostra o link do convite p
 
 Você também pode entrar na área de qualquer empresa pelo botão **Abrir área da empresa**, para configurar tudo em nome do cliente.
 
+## Outros painéis e Cloudflare
+
+**Pasta pública com outro nome.** Em painéis como o CyberPanel, a pasta servida pela web se chama `public_html` e não dá para trocar. Nesse caso coloque o conteúdo de `public` dentro de `public_html` e deixe `app`, `bin`, `storage` e `config.php` uma pasta acima. A plataforma descobre sozinha onde está a pasta pública. Na publicação automática, preencha a variável `FTP_PUBLIC_DIR`.
+
+**OpenLiteSpeed.** Esse servidor só lê as regras de reescrita dos arquivos `.htaccess` e só as recarrega ao reiniciar. Depois de enviar ou alterar um `.htaccess`, reinicie o OpenLiteSpeed pelo painel. As proteções da plataforma usam regras de reescrita justamente por isso.
+
+**Cloudflare.** Com o site atrás do Cloudflare:
+
+* O endereço de FTP não pode ser o domínio com a nuvem laranja ligada, porque o Cloudflare não repassa FTP. Use o IP do servidor ou um nome só de DNS.
+* O Cloudflare guarda imagens em cache. Depois de uma atualização que corrija imagens, use **Caching**, **Purge Everything**.
+* Em **Caching**, **Browser Cache TTL**, escolha **Respect Existing Headers**. Com um prazo fixo longo, a troca de uma imagem pelo botão Substituir demora a aparecer para quem já a viu.
+
+**O arquivo config.php.** Ele precisa começar com `<?php` na primeira linha. Linhas em branco antes ou depois são toleradas desde a versão 1.0.1.
+
+## Atualizar uma instalação feita à mão
+
+1. Envie o conteúdo novo de `public` para a pasta pública do site, por cima dos arquivos atuais.
+2. Envie as pastas `app` e `bin` para a pasta do sistema, por cima das atuais.
+3. Não apague nem substitua `config.php`, `storage` e a pasta `uploads`.
+4. Reinicie o OpenLiteSpeed, se for o caso, e limpe o cache do Cloudflare.
+
 ## Trocar de endereço depois
 
 1. Crie o novo domínio ou subdomínio apontando para a mesma pasta.
@@ -112,6 +136,7 @@ Com a opção A, cada merge na branch principal publica a nova versão. As tabel
 
 | Sintoma | Causa provável | O que fazer |
 |---|---|---|
+| Ícones e imagens não aparecem em versão anterior à 1.0.1 | Linha em branco no `config.php` e pasta pública com outro nome | Atualize para a 1.0.1 e limpe o cache do Cloudflare |
 | "Configuração pendente" | Falta o `config.php` | Copie `config.sample.php` para `config.php` e preencha |
 | Erro ao conectar ao banco | Dados do banco errados | Confira nome, usuário e senha. No cPanel o nome leva o prefixo da conta |
 | Imagens não aparecem na prévia | Pasta sem permissão ou GD desligado | Dê permissão 755 em `public/uploads` e ative a extensão `gd` |

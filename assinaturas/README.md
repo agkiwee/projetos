@@ -94,6 +94,10 @@ node tests/smtp.test.mjs
 ```
 
 ```bash
+node tests/layout.test.mjs
+```
+
+```bash
 node tests/e2e.mjs
 ```
 

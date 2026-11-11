@@ -218,9 +218,9 @@ function setup_available(): bool
 function setup_checks(): array
 {
     // Pastas que a publicação pode não ter criado: tenta criar antes de conferir.
-    foreach (['/storage', '/public/uploads', '/public/icones'] as $dir) {
-        if (!is_dir(KW_ROOT . $dir)) {
-            @mkdir(KW_ROOT . $dir, 0755, true);
+    foreach ([KW_ROOT . '/storage', KW_PUBLIC . '/uploads', KW_PUBLIC . '/icones'] as $dir) {
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0755, true);
         }
     }
     return [
@@ -229,8 +229,8 @@ function setup_checks(): array
         ['Extensão cURL (importar imagem por URL)', function_exists('curl_init'), 'Ative a extensão curl no seletor de PHP do cPanel.'],
         ['Extensão mbstring', function_exists('mb_substr'), 'Ative a extensão mbstring.'],
         ['Pasta storage gravável', is_writable(KW_ROOT . '/storage'), 'Dê permissão de escrita (755) para a pasta storage.'],
-        ['Pasta public/uploads gravável', is_writable(KW_ROOT . '/public/uploads'), 'Dê permissão de escrita (755) para public/uploads.'],
-        ['Pasta public/icones gravável', is_writable(KW_ROOT . '/public/icones'), 'Dê permissão de escrita (755) para public/icones.'],
+        ['Pasta uploads gravável', is_writable(KW_PUBLIC . '/uploads'), 'Dê permissão de escrita (755) para a pasta uploads dentro da pasta pública.'],
+        ['Pasta icones gravável', is_writable(KW_PUBLIC . '/icones'), 'Dê permissão de escrita (755) para a pasta icones dentro da pasta pública.'],
         ['Endereço do site configurado', trim((string) config('app_url', '')) !== '', 'Preencha app_url no config.php.'],
         ['Envio de arquivos de até 4 MB', upload_limit_bytes() >= IMG_MAX_UPLOAD_BYTES,
             'O PHP aceita arquivos de até ' . format_megabytes(upload_limit_bytes()) . '. Aumente upload_max_filesize e post_max_size para 8M no cPanel.'],

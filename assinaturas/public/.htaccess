@@ -1,6 +1,10 @@
 Options -Indexes
 <IfModule mod_rewrite.c>
     RewriteEngine On
+    # A pasta de envios só entrega imagens. Regra de reescrita porque o OpenLiteSpeed ignora as outras
+    # diretivas dos arquivos .htaccess.
+    RewriteRule ^uploads/.*\.(?!png$|gif$|jpe?g$)[^./]*$ - [F,NC,L]
+    RewriteRule ^uploads/(.*/)?\.[^/]*$ - [F,L]
     # Arquivos existentes (CSS, JS, imagens enviadas, ícones já gerados) são servidos direto.
     RewriteCond %{REQUEST_FILENAME} -f
     RewriteRule ^ - [L]

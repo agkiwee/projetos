@@ -4,10 +4,17 @@ declare(strict_types=1);
 /**
  * Gerador dos ícones da biblioteca na cor escolhida pelo cliente.
  *
- * Endereço: /icones/{forma}/{cor}/{nome}.png  (cor em hexadecimal, sem #)
+ * Endereço: /icones/{versão}/{forma}/{cor}/{nome}.png  (cor em hexadecimal, sem #)
+ * O endereço antigo, sem a versão, continua atendido para as assinaturas já instaladas.
  * As máscaras ficam em app/resources/icons e são geradas por tools/build-icons.mjs.
  * Clientes de e-mail não exibem SVG, por isso cada ícone é entregue como PNG.
  */
+
+/**
+ * Versão do conjunto de ícones, usada no endereço. Mudar este número faz navegadores e serviços de cache
+ * (Cloudflare, por exemplo) buscarem os ícones de novo. Mantenha igual a ICON_VERSION em renderer.js.
+ */
+const KW_ICON_VERSION = 2;
 
 function icon_mask_path(string $shape, string $name): ?string
 {
@@ -66,6 +73,8 @@ function icon_serve(string $shape, string $hex, string $name): void
         exit;
     }
     $png = icon_render($mask, $hex);
+    // Nada pode sair antes dos bytes da imagem: um único caractere a mais corrompe o PNG.
+    discard_output();
     header('Content-Type: image/png');
     header('Content-Length: ' . strlen($png));
     header('Cache-Control: public, max-age=604800');
@@ -105,7 +114,7 @@ function icons_warm(array $data): void
         if ($mask === null) {
             continue;
         }
-        $dir = KW_ROOT . '/public/icones/' . $iconShape . '/' . $hex;
+        $dir = KW_PUBLIC . '/icones/' . KW_ICON_VERSION . '/' . $iconShape . '/' . $hex;
         $file = $dir . '/' . $name . '.png';
         if (is_file($file)) {
             continue;

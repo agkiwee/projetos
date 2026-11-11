@@ -174,7 +174,7 @@ function api_asset_delete(string $id): void
     foreach ([$asset['path'], $asset['path_circle']] as $path) {
         // O caminho vem do banco e sempre fica dentro da pasta da própria empresa.
         if ($path && strpos($path, '/uploads/' . $company['public_key'] . '/') === 0) {
-            @unlink(KW_ROOT . '/public' . $path);
+            @unlink(KW_PUBLIC . $path);
         }
     }
     db_run('DELETE FROM assets WHERE id = ? AND company_id = ?', [(int) $asset['id'], (int) $company['id']]);

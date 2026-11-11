@@ -225,7 +225,7 @@
   }
 
   function iconSrc(type) {
-    return boot.baseUrl + '/icones/' + state.style.iconShape + '/' + state.style.colorIcon.replace('#', '') + '/' + type + '.png';
+    return R.iconUrl(boot.baseUrl, state.style.iconShape, state.style.colorIcon, type);
   }
 
   function renderSocial() {
@@ -390,7 +390,7 @@
       image.alt = '';
       image.width = 28;
       image.height = 28;
-      image.src = boot.baseUrl + '/icones/' + shape.id + '/' + state.style.colorIcon.replace('#', '') + '/linkedin.png';
+      image.src = R.iconUrl(boot.baseUrl, shape.id, state.style.colorIcon, 'linkedin');
       var name = document.createElement('span');
       name.textContent = shape.name;
       label.appendChild(radio);

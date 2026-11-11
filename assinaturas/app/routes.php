@@ -69,9 +69,10 @@ function kw_dispatch(): void
     }
 
     // Ícones são públicos (aparecem nos e-mails) e não usam sessão.
-    if ($method === 'GET' && preg_match('#^/icones/([a-z\-]+)/([0-9a-fA-F]{6})/([a-z0-9]+)\.png$#', $path, $match)) {
+    if ($method === 'GET' && preg_match('#^/icones/(?:\d{1,3}/)?([a-z\-]+)/([0-9a-fA-F]{6})/([a-z0-9]+)\.png$#', $path, $match)) {
         icon_serve($match[1], $match[2], $match[3]);
     }
+    adopt_misplaced_public_files();
 
     send_security_headers();
     session_boot();
@@ -99,4 +100,33 @@ function kw_dispatch(): void
         return;
     }
     not_found();
+}
+
+/**
+ * Quando a pasta pública do servidor não se chama "public" (public_html, por exemplo), versões antigas
+ * gravavam as imagens enviadas em uma pasta "public" ao lado dela, onde a web não alcança.
+ * Esta função leva esses arquivos para a pasta pública de verdade. Roda uma vez e depois não faz mais nada.
+ */
+function adopt_misplaced_public_files(): void
+{
+    $stray = KW_ROOT . '/public';
+    if (KW_PUBLIC === $stray || !is_dir($stray . '/uploads') || realpath($stray) === realpath(KW_PUBLIC)) {
+        return;
+    }
+    foreach ((array) glob($stray . '/uploads/*', GLOB_ONLYDIR) as $companyDir) {
+        $target = KW_PUBLIC . '/uploads/' . basename($companyDir);
+        if (!is_dir($target) && !@mkdir($target, 0755, true) && !is_dir($target)) {
+            return; // sem permissão agora: tenta de novo na próxima requisição
+        }
+        foreach ((array) glob($companyDir . '/*.png') as $file) {
+            $destination = $target . '/' . basename($file);
+            if (!is_file($destination)) {
+                @rename($file, $destination);
+            } else {
+                @unlink($file);
+            }
+        }
+        @rmdir($companyDir);
+    }
+    @rmdir($stray . '/uploads');
 }

@@ -5,8 +5,9 @@
  * Em produção quem faz este papel é o public/.htaccess.
  */
 $path = rawurldecode((string) parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH));
-$file = dirname(__DIR__) . '/public' . $path;
+$public = rtrim((string) ($_SERVER['DOCUMENT_ROOT'] ?? ''), '/') ?: dirname(__DIR__) . '/public';
+$file = $public . $path;
 if ($path !== '/' && strpos($path, '..') === false && is_file($file) && !preg_match('/\.php$/i', $path)) {
     return false; // arquivo estático
 }
-require dirname(__DIR__) . '/public/index.php';
+require $public . '/index.php';

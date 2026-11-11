@@ -72,8 +72,17 @@ function redirect(string $path): void
     exit;
 }
 
+/** Descarta qualquer saída acumulada, para respostas que precisam sair exatas (imagens e JSON). */
+function discard_output(): void
+{
+    while (ob_get_level() > 0) {
+        ob_end_clean();
+    }
+}
+
 function json_out(array $data, int $status = 200): void
 {
+    discard_output();
     http_response_code($status);
     header('Content-Type: application/json; charset=utf-8');
     header('Cache-Control: no-store');
@@ -229,7 +238,7 @@ function render(string $view, array $data = [], string $layout = 'layout'): void
 /** Endereço de um arquivo estático com carimbo de versão para evitar cache antigo. */
 function asset(string $path): string
 {
-    $file = KW_ROOT . '/public/assets/' . ltrim($path, '/');
+    $file = KW_PUBLIC . '/assets/' . ltrim($path, '/');
     $version = is_file($file) ? (string) filemtime($file) : '0';
     return url('/assets/' . ltrim($path, '/')) . '?v=' . $version;
 }

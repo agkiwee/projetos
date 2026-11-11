@@ -6,7 +6,11 @@ declare(strict_types=1);
  */
 
 define('KW_ROOT', dirname(__DIR__));
-define('KW_VERSION', '1.0.0');
+define('KW_VERSION', '1.0.1');
+// Pasta servida pela web. O public/index.php define o valor real; aqui fica o padrão para scripts e testes.
+if (!defined('KW_PUBLIC')) {
+    define('KW_PUBLIC', KW_ROOT . '/public');
+}
 
 mb_internal_encoding('UTF-8');
 error_reporting(E_ALL);
@@ -23,7 +27,23 @@ if (!is_file($kwConfigPath)) {
         . 'preencha o endereço do site e os dados do banco e recarregue esta página.</p></body></html>';
     exit;
 }
+/*
+ * O config.php é editado à mão no servidor. Uma linha em branco antes da abertura do PHP ou depois do
+ * fechamento sairia na frente de toda resposta e corromperia as imagens geradas.
+ * Por isso tudo o que ele imprimir é descartado.
+ */
+ob_start();
 $GLOBALS['kw_config'] = require $kwConfigPath;
+ob_end_clean();
+if (!is_array($GLOBALS['kw_config'])) {
+    http_response_code(503);
+    header('Content-Type: text/html; charset=utf-8');
+    echo '<!DOCTYPE html><html lang="pt-BR"><meta charset="utf-8"><title>Configuração inválida</title>'
+        . '<body style="font-family:system-ui,sans-serif;max-width:560px;margin:80px auto;padding:0 20px;line-height:1.5">'
+        . '<h1>Configuração inválida</h1><p>O arquivo <code>config.php</code> precisa começar com <code>&lt;?php</code> '
+        . 'e terminar devolvendo a lista de opções, como no <code>config.sample.php</code>.</p></body></html>';
+    exit;
+}
 
 require KW_ROOT . '/app/lib/helpers.php';
 require KW_ROOT . '/app/lib/db.php';

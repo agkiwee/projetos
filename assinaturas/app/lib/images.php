@@ -149,7 +149,7 @@ function image_fix_orientation($image, string $bytes)
 
 function uploads_dir(array $company): string
 {
-    return KW_ROOT . '/public/uploads/' . $company['public_key'];
+    return KW_PUBLIC . '/uploads/' . $company['public_key'];
 }
 
 /**
@@ -165,7 +165,7 @@ function asset_store(array $company, string $kind, string $bytes, string $origin
     $prepared = image_prepare($bytes, $kind);
     $dir = uploads_dir($company);
     if (!is_dir($dir) && !@mkdir($dir, 0755, true) && !is_dir($dir)) {
-        throw new ImageProblem('Não foi possível criar a pasta de arquivos no servidor. Verifique as permissões de public/uploads.');
+        throw new ImageProblem('Não foi possível criar a pasta de arquivos no servidor. Verifique as permissões da pasta uploads.');
     }
 
     if ($replace !== null) {

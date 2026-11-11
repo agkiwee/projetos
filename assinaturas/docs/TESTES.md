@@ -24,11 +24,12 @@ Data: 10/11/2026.
 
 | Conjunto | Comando | Resultado |
 |---|---|---|
-| Fluxo completo no navegador, com SQLite | `node tests/e2e.mjs` | 138 verificações, todas passaram |
-| Fluxo completo no navegador, com MariaDB | `KW_TEST_DB=mysql node tests/e2e.mjs` | 138 verificações, todas passaram |
+| Fluxo completo no navegador, com SQLite | `node tests/e2e.mjs` | 142 verificações, todas passaram |
+| Fluxo completo no navegador, com MariaDB | `KW_TEST_DB=mysql node tests/e2e.mjs` | 142 verificações, todas passaram |
 | Gerador do HTML da assinatura | `node --test tests/renderer.test.mjs` | 22 testes, todos passaram |
 | Regras do servidor | `php tests/unit.php` | 91 verificações, todas passaram |
 | Envio de e-mail por SMTP (servidor falso, sem criptografia) | `node tests/smtp.test.mjs` | 7 verificações, todas passaram |
+| Pasta pública com outro nome e `config.php` com linhas em branco | `node tests/layout.test.mjs` | 12 verificações, todas passaram |
 
 ### O que o fluxo completo cobre
 
@@ -70,12 +71,25 @@ Depois dos testes, o código passou por uma revisão separada, feita sem conhece
 
 Pontos apontados e mantidos como estão, por baixo impacto: o tempo de resposta do pedido de link de senha pode indicar se um e-mail tem acesso, e a pasta de ícones cresce com cada cor salva.
 
+## Primeira publicação: o que apareceu no servidor real
+
+Em 11/11/2026 a versão 1.0.0 foi publicada em `assinatura.agkiwee.com.br`, em um servidor OpenLiteSpeed (CyberPanel) atrás do Cloudflare. Dois problemas apareceram, e nenhum dos testes anteriores os cobria:
+
+| Problema | Causa | Correção na 1.0.1 |
+|---|---|---|
+| Nenhum ícone aparecia | O servidor enviava uma quebra de linha antes de cada resposta, vinda de uma linha em branco no `config.php`. Um caractere antes da imagem corrompe o PNG | A saída do `config.php` é descartada e as imagens são enviadas com a saída limpa |
+| Imagens enviadas não apareciam | A pasta pública do servidor se chama `public_html`. A plataforma gravava em uma pasta `public` ao lado, que a web não alcança | A pasta pública é detectada pelo local do `index.php`. Os arquivos gravados no lugar errado são levados para o lugar certo |
+
+O diagnóstico foi feito pelas páginas públicas do site: os 180 ícones respondiam com um byte a mais no começo, e os endereços de estilo saíam sem carimbo de versão. O endereço dos ícones ganhou um número de versão, para o Cloudflare e os navegadores não continuarem entregando as imagens corrompidas que já tinham guardado.
+
+Os dois casos agora têm teste automático.
+
 ## Limites conhecidos
 
 * **Google Drive.** A conversão do link de compartilhamento e as mensagens de erro foram testadas com respostas simuladas. Não foi possível buscar um arquivo real do Drive, porque o ambiente não alcança os servidores do Google. Por isso a tela recomenda guardar uma cópia na plataforma.
 * **SMTP com SSL ou TLS.** O envio foi testado sem criptografia contra um servidor falso. Os modos `ssl` e `tls` usam o mesmo código depois da conexão, mas não foram exercitados. Teste enviando um convite real depois de publicar.
 * **Função mail() do servidor.** Só pode ser testada no servidor de hospedagem.
-* **LiteSpeed.** Muitos cPanel usam LiteSpeed no lugar do Apache. As regras usadas são as comuns aos dois, mas o teste foi feito em Apache.
+* **OpenLiteSpeed.** Os testes de servidor foram feitos em Apache. O OpenLiteSpeed só lê regras de reescrita dos arquivos `.htaccess`, e as proteções da plataforma foram escritas assim. O funcionamento nele foi conferido pelas páginas públicas do site publicado, não por teste automático.
 * **GIF animado.** Por segurança, toda imagem enviada é regravada como PNG. Um GIF animado enviado para a plataforma vira imagem parada. Um GIF animado hospedado no site do cliente e usado por link direto, sem cópia, continua animado.
 * **Modo escuro dos programas de e-mail.** Alguns invertem cores por conta própria. O editor tem a prévia em fundo escuro para conferir o logotipo.
 

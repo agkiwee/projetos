@@ -1,6 +1,6 @@
 name: Publicar assinaturas
 
-# Envia a pasta assinaturas/ para o cPanel por FTP.
+# Envia a pasta assinaturas/ para o servidor por FTP.
 # Antes do primeiro uso, crie os segredos FTP_SERVER, FTP_USERNAME e FTP_PASSWORD
 # em Settings > Secrets and variables > Actions. Veja assinaturas/docs/PUBLICACAO.md.
 
@@ -19,9 +19,10 @@ concurrency:
 
 jobs:
   publicar:
-    name: Publicar no cPanel
-    # Publica só a partir da branch principal do repositório, seja qual for o nome dela.
-    if: github.ref_name == github.event.repository.default_branch
+    name: Publicar no servidor
+    # Publica quando a alteração chega à branch principal do repositório ou quando alguém roda o fluxo à mão,
+    # o que permite publicar uma correção direto de uma branch.
+    if: github.event_name == 'workflow_dispatch' || github.ref_name == github.event.repository.default_branch
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -55,9 +56,13 @@ jobs:
           find app public bin -name '*.php' -print0 | xargs -0 -n1 php -l
           php tests/unit.php
           node --test tests/renderer.test.mjs
+          node tests/layout.test.mjs
 
+      # O config.php, as imagens dos clientes e o conteúdo de storage ficam só no servidor e nunca são apagados.
+
+      # Formato 1: a pasta do projeto vai inteira para um lugar só (a raiz do site aponta para "public").
       - name: Enviar os arquivos por FTP
-        if: steps.segredos.outputs.pronto == 'sim'
+        if: steps.segredos.outputs.pronto == 'sim' && vars.FTP_PUBLIC_DIR == ''
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ${{ secrets.FTP_SERVER }}
@@ -66,11 +71,48 @@ jobs:
           protocol: ${{ vars.FTP_PROTOCOL || 'ftps' }}
           local-dir: ./assinaturas/
           server-dir: ${{ vars.FTP_SERVER_DIR || './' }}
-          # O config.php, as imagens dos clientes e o conteúdo de storage ficam só no servidor e nunca são apagados.
           exclude: |
             **/.git*
             **/.git*/**
             **/node_modules/**
+            tests/**
+            tools/**
+            docs/**
+            config.php
+
+      # Formato 2: a pasta pública do servidor tem outro nome (public_html, por exemplo).
+      # O conteúdo de "public" vai para ela e o restante fica na pasta do site.
+      - name: Enviar a pasta pública por FTP
+        if: steps.segredos.outputs.pronto == 'sim' && vars.FTP_PUBLIC_DIR != ''
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ${{ vars.FTP_PROTOCOL || 'ftps' }}
+          local-dir: ./assinaturas/public/
+          server-dir: ${{ vars.FTP_PUBLIC_DIR }}
+          state-name: .ftp-deploy-publico.json
+          exclude: |
+            **/.git*
+            **/.git*/**
+
+      - name: Enviar o restante por FTP
+        if: steps.segredos.outputs.pronto == 'sim' && vars.FTP_PUBLIC_DIR != ''
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ${{ vars.FTP_PROTOCOL || 'ftps' }}
+          local-dir: ./assinaturas/
+          server-dir: ${{ vars.FTP_SERVER_DIR || './' }}
+          state-name: .ftp-deploy-sistema.json
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/node_modules/**
+            public/**
             tests/**
             tools/**
             docs/**

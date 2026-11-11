@@ -76,6 +76,8 @@ jobs:
         run: node --test tests/renderer.test.mjs
       - name: Testar o envio de e-mail por SMTP
         run: node tests/smtp.test.mjs
+      - name: Testar a pasta pública com outro nome
+        run: node tests/layout.test.mjs
       - name: Instalar o navegador de teste
         run: |
           npm install --no-save --no-audit --no-fund playwright@1.63.0
